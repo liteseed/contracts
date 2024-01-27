@@ -100,6 +100,47 @@ function Slash(msg)
 	Balances[sender] = (Balances[sender] or 0) + amount 
 end
 
+function Mint(msg, env)
+	assert(msg.From == env.Process.Id, "Caller not owner")
+	local quantity = tonumber(msg.Tags.Quantity)
+
+	assert(quantity, 'Quantity is required!')
+	Balances[env.Process.Id] = Balances[env.Process.Id] + quantity
+end
+
+function Transfer(msg)
+	local sender = msg.From
+	local recipient = msg.Tags.Recipient
+	local quantity = tonumber(msg.Tags.Quantity)
+
+	assert(recipient, "Recipient is required")
+	assert(quantity and Balances[sender] and Balances[sender] > quantity, "Insufficient Balance")
+
+	Balances[sender] = Balances[sender] - quantity
+ 	Balances[recipient] = (Balances[recipient] or 0) + quantity
+
+
+	if not msg.Tags.Cast then
+        -- Send Credit-Notice to the Recipient
+		ao.send({
+        		Target = msg.From,
+    	   		Tags = { Action = 'Debit-Notice', Recipient = msg.Tags.Recipient, Quantity = tostring(qty) }
+ 		})
+      		ao.send({
+        		Target = msg.Tags.Recipient,
+        		Tags = { Action = 'Credit-Notice', Sender = msg.From, Quantity = tostring(qty) }
+      		})
+    	else
+		ao.send({
+     	 		Target = msg.Tags.From,
+      			Tags = { Action = 'Transfer-Error', ['Message-Id'] = msg.Id, Error = 'Insufficient Balance!' }
+    		})
+  	end
+
+end
+
+
+
 Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
   ao.send(
     { Target = msg.From, Tags = { Name = Name, Ticker = Ticker, Logo = Logo, Denomination = tostring(Denomination) } })
@@ -132,75 +173,8 @@ end)
 Handlers.add('balances', Handlers.utils.hasMatchingTag('Action', 'Balances'),
   function(msg) ao.send({ Target = msg.From, Data = json.encode(Balances) }) end)
 
---[[
-     Transfer
-   ]]
---
-Handlers.add('transfer', Handlers.utils.hasMatchingTag('Action', 'Transfer'), function(msg)
-  assert(type(msg.Tags.Recipient) == 'string', 'Recipient is required!')
-  assert(type(msg.Tags.Quantity) == 'string', 'Quantity is required!')
-
-  if not Balances[msg.From] then Balances[msg.From] = 0 end
-
-  if not Balances[msg.Tags.Recipient] then Balances[msg.Tags.Recipient] = 0 end
-
-  local qty = tonumber(msg.Tags.Quantity)
-  assert(type(qty) == 'number', 'qty must be number')
-
-  if Balances[msg.From] >= qty then
-    Balances[msg.From] = Balances[msg.From] - qty
-    Balances[msg.Tags.Recipient] = Balances[msg.Tags.Recipient] + qty
-
-    --[[
-         Only send the notifications to the Sender and Recipient
-         if the Cast tag is not set on the Transfer message
-       ]]
-    --
-    if not msg.Tags.Cast then
-      -- Send Debit-Notice to the Sender
-      ao.send({
-        Target = msg.From,
-        Tags = { Action = 'Debit-Notice', Recipient = msg.Tags.Recipient, Quantity = tostring(qty) }
-      })
-      -- Send Credit-Notice to the Recipient
-      ao.send({
-        Target = msg.Tags.Recipient,
-        Tags = { Action = 'Credit-Notice', Sender = msg.From, Quantity = tostring(qty) }
-      })
-    end
-  else
-    ao.send({
-      Target = msg.Tags.From,
-      Tags = { Action = 'Transfer-Error', ['Message-Id'] = msg.Id, Error = 'Insufficient Balance!' }
-    })
-  end
-end)
-
---[[
-    Mint
-   ]]
---
-Handlers.add('mint', Handlers.utils.hasMatchingTag('Action', 'Mint'), function(msg, env)
-  assert(type(msg.Tags.Quantity) == 'string', 'Quantity is required!')
-
-  if msg.From == env.Process.Id then
-    -- Add tokens to the token pool, according to Quantity
-    local qty = tonumber(msg.Tags.Quantity)
-    Balances[env.Process.Id] = Balances[env.Process.Id] + qty
-  else
-    ao.send({
-      Target = msg.Tags.From,
-      Tags = {
-        Action = 'Mint-Error',
-        ['Message-Id'] = msg.Id,
-        Error = 'Only the Process Owner can mint new ' .. Ticker .. ' tokens!'
-      }
-    })
-  end
-end)
-
-
-
+Handlers.add('mint', Handlers.utils.hasMatchingTag('Action', 'Mint'), Mint(msg, env))
+Handlers.add('transfer', Handlers.utils.hasMatchingTag('Action', 'Transfer'), Transfer(msg)) 
 Handlers.add('stake', Handlers.utils.hasMatchingTag('Action', 'Stake'), Stake(msg))
 Handlers.add('unstake', Handlers.utils.hasMatchingTag('Action', 'Unstake'), Unstake(msg))
 Handlers.add('punish', Handlers.utils.hasMatchingTag('Action', 'Punish'), Punish(msg, env))
