@@ -1,0 +1,13 @@
+{
+  "name": "aos-test",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "## Requirements",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@permaweb/ao-loader": "^0.0.13"
+  }
+}
