@@ -38,12 +38,16 @@ function Unstake(msg)
   local blockHeight = tonumber(msg['Block-Height'])
 
   assert(Stakers[sender] and Stakers[sender].amount, "Not staked")
-  assert(Stakers[sender].amount >= quantity, "Requested amount greater than staked amount")
+  assert(Stakers[sender].amount - quantity > 100 or Stakers[sender].amount - quantity == 0, "Requested amount greater than staked amount")
   assert(Stakers[sender].stakedAt + 100 < blockHeight, "Unstake time delay not expired")
 
   Stakers[sender].amount = Stakers[sender].amount - quantity
   Balances[sender] = (Balances[sender] or 0) + quantity
-  utils.filter(function(v) return (v ~= sender) end, IndexedStakers)
+  if Stakers[sender].amount == 0 then
+    Stakers[sender] = nil
+    IndexedStakers = utils.filter(function (v) return (v ~= sender) end, IndexedStakers)
+    Reputations[sender] = nil
+  end
 end
 
 function Punish(msg, env)
