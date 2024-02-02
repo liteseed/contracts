@@ -170,6 +170,7 @@ describe("Token", () => {
         { name: "Recipient", value: "SOME-PROCESS-ID"},
       ],
     };
+    // TODO: Add expect for assert
     handle(loaded.memory, message1, environment);
 
     const message2 = evaluate("Balances");
@@ -191,6 +192,7 @@ describe("Token", () => {
         { name: "Recipient", value: "SOME-PROCESS-ID"},
       ],
     };
+    // TODO: Add expect for assert
     handle(loaded.memory, message1, environment);
 
     const message2 = evaluate("Balances");
