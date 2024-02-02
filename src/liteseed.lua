@@ -2,41 +2,32 @@ local json = require('json')
 local utils = require(".utils")
 
 if Name ~= 'Liteseed' then Name = 'Liteseed' end
-
 if Ticker ~= 'LS' then Ticker = 'LS' end
-
 if Denomination ~= 10 then Denomination = 10 end
-
 if not Logo then Logo = 'optional arweave TXID of logo image' end
 
 Balances = Balances or { [ao.id] = 100000000 }
 Stakers = Stakers or {}
 Reputations = Reputations or {}
-
 IndexedStakers = IndexedStakers or {}
-TotalStakers = TotalStakers or 0
 
 function Stake(msg)
   local sender = msg.From
   local quantity = tonumber(msg.Tags.Quantity)
   local currentBlockHeight = tonumber(msg['Block-Height'])
 
-  assert(quantity > 99, "Quantity has to be greater than 99")
+  assert(quantity > 99, "Quantity has to be greateer than 99")
   assert(Balances[sender] and Balances[sender] >= quantity, "Insufficient Balance")
 
   Balances[sender] = Balances[sender] - quantity
 
-  local staker = Stakers[sender]
-
   -- Index staker to randomly select --
-  if staker == nil then
-    staker = 0
-    TotalStakers = TotalStakers + 1
-    IndexedStakers[TotalStakers] = sender
+  if Stakers[sender] == nil then
+    Stakers[sender] = { amount = 0, stakedAt = -1}
+    IndexedStakers[#IndexedStakers+1] = sender
   end
 
-  Stakers[sender] = (Stakers[sender] or {})
-  Stakers[sender].amount = (Stakers[sender].amount or 0) + quantity
+  Stakers[sender].amount = Stakers[sender].amount + quantity
   Stakers[sender].stakedAt = currentBlockHeight
   Reputations[sender] = Reputations[sender] or 1000
 end
@@ -53,7 +44,6 @@ function Unstake(msg)
   Stakers[sender].amount = Stakers[sender].amount - quantity
   Balances[sender] = (Balances[sender] or 0) + quantity
   utils.filter(function(v) return (v ~= sender) end, IndexedStakers)
-  TotalStakers = TotalStakers - 1
 end
 
 function Punish(msg, env)
