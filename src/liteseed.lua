@@ -1,7 +1,6 @@
 local json = require('json')
 local utils = require(".utils")
 
-
 if Name ~= 'Liteseed' then Name = 'Liteseed' end
 
 if Ticker ~= 'LS' then Ticker = 'LS' end
@@ -112,26 +111,20 @@ function Transfer(msg)
   local quantity = tonumber(msg.Tags.Quantity)
 
   assert(recipient, "Recipient is required")
-  assert(quantity and Balances[sender] and Balances[sender] > quantity, "Insufficient Balance")
+  assert(quantity and quantity > 0 and Balances[sender] and Balances[sender] > quantity, "Insufficient Balance")
 
   Balances[sender] = Balances[sender] - quantity
   Balances[recipient] = (Balances[recipient] or 0) + quantity
-
 
   if not msg.Tags.Cast then
     -- Send Credit-Notice to the Recipient
     ao.send({
       Target = msg.From,
-      Tags = { Action = 'Debit-Notice', Recipient = msg.Tags.Recipient, Quantity = tostring(qty) }
+      Tags = { Action = 'Debit-Notice', Recipient = msg.Tags.Recipient, Quantity = tostring(quantity) }
     })
     ao.send({
       Target = msg.Tags.Recipient,
-      Tags = { Action = 'Credit-Notice', Sender = msg.From, Quantity = tostring(qty) }
-    })
-  else
-    ao.send({
-      Target = msg.Tags.From,
-      Tags = { Action = 'Transfer-Error', ['Message-Id'] = msg.Id, Error = 'Insufficient Balance!' }
+      Tags = { Action = 'Credit-Notice', Sender = msg.From, Quantity = tostring(quantity) }
     })
   end
 end
