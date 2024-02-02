@@ -18,7 +18,6 @@ TotalStakers = TotalStakers or 0
 
 function Stake(msg)
   local sender = msg.From
-
   local quantity = tonumber(msg.Tags.Quantity)
   local currentBlockHeight = tonumber(msg['Block-Height'])
 
