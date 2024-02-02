@@ -63,7 +63,7 @@ describe("Token", () => {
       ],
     };
     const result1 = handle(loaded.memory, message1, environment);
-    console.log(result1);
+    console.log(result1.Error);
 
     const message2 = evaluate("Balances");
     const result2 = handle(loaded.memory, message2, environment);
@@ -72,11 +72,6 @@ describe("Token", () => {
 
 
   test("Mint - Quantity is Required", async () => {
-    const loaded = evaluate(liteseed);
-    const handle = await AoLoader(wasm);
-    handle(null, loaded, environment);
-
-
     const message = {
       From: "DUMMY-PROCESS-ID",
       Tags: [
@@ -87,7 +82,25 @@ describe("Token", () => {
     // MINT ASSERT ERROR QUANTITY == 0
     const result = handle(loaded.memory, message, environment);
     console.log(result.Error);
-    const result1 = handle(loaded.memory, evaluate("Errors"), environment);
-    console.log(result1);
+  });
+
+  test("Transfer", async () => {
+    const message0 = evaluate("Balances");
+    const result0 = handle(loaded.memory, message0, environment);
+    expect(result0.Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 100000000 });
+
+    const message1 = {
+      From: "DUMMY-PROCESS-ID",
+      Tags: [
+        { name: "Action", value: "Transfer" },
+        { name: "Quantity", value: "100" },
+        { name: "Recipient", value: "SOME-PROCESS-ID"},
+      ],
+    };
+    handle(loaded.memory, message1, environment);
+
+    const message2 = evaluate("Balances");
+    const result2 = handle(loaded.memory, message2, environment);
+    expect(result2.Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID" : 100 });
   });
 });

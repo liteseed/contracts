@@ -20,7 +20,7 @@ describe("Staking", () => {
   test("Stakers", async () => {
     const msg = evaluate("Stakers")
     const result = handle(loaded.memory, msg, env);
-    expect(result.Output.data.json).toBe({});
+    expect(result.Output.data.json).toEqual([]);
   });
 
   test("Stake", async () => {
@@ -42,42 +42,4 @@ describe("Staking", () => {
     expect(msg2Result.Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 100000100 });
   });
 
-
-  test("Mint - Caller not owner", async () => {
-    const msg0 = evaluate("Balances");
-    const msg0Result = handle(loaded.memory, msg0, env);
-    expect(msg0Result.Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 100000000 });
-
-    const msg1 = {
-      From: "SOME-PROCESS-ID",
-      Tags: [
-        { name: "Action", value: "Mint" },
-        { name: "Quantity", value: "100" }
-      ],
-    };
-    const msg1Result = handle(loaded.memory, msg1, env);
-    console.log(msg1Result);
-
-    const msg2 = evaluate("Balances");
-    const msg2Result = handle(loaded.memory, msg2, env);
-    expect(msg2Result.Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 100000000 });
-  });
-
-
-  test("Mint - Quantity is Required", async () => {
-    const loaded = evaluate(liteseed);
-    const handle = await AoLoader(wasm);
-    handle(null, loaded, env);
-
-    const msg = {
-      From: "DUMMY-PROCESS-ID",
-      Tags: [
-        { name: "Action", value: "Mint" }
-      ],
-    };
-    // MINT ASSERT ERROR QUANTITY == 0
-    const result = handle(loaded.memory, msg, env);
-    // undefined
-    // console.log(result.Error);
-  });
 });
