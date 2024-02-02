@@ -16,7 +16,7 @@ function Stake(msg)
   local quantity = tonumber(msg.Tags.Quantity)
   local currentBlockHeight = tonumber(msg['Block-Height'])
 
-  assert(quantity > 99, "Quantity has to be greateer than 99")
+  assert(quantity > 99, "Quantity has to be greater than 99")
   assert(Balances[sender] and Balances[sender] >= quantity, "Insufficient Balance")
 
   Balances[sender] = Balances[sender] - quantity
