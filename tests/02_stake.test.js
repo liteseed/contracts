@@ -98,4 +98,41 @@ describe("Staking", () => {
     expect(result5.Output.data.json).toEqual([]);
   });
 
+  test("Stake - Insufficient Balance", async () => {
+    const message0 = evaluate("Balances");
+    const result0 = handle(loaded.memory, message0, env);
+    expect(result0.Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 100000000 });
+
+    const message1 = evaluate("Stakers");
+    const result1 = handle(loaded.memory, message1, env);
+    expect(result1.Output.data.json).toEqual([]);
+
+    const message2 = {
+      From: "DUMMY-PROCESS-ID",
+      Tags: [
+        { name: "Action", value: "Transfer" },
+        { name: "Quantity", value: "100" },
+        { name: "Recipient", value: "SOME-PROCESS-ID"}
+      ],
+    };
+    handle(loaded.memory, message2, env);
+
+    const message3 = {
+      From: "SOME-PROCESS-ID",
+      Tags: [
+        { name: "Action", value: "Stake" },
+        { name: "Quantity", value: "99" },
+      ],
+    };
+    handle(loaded.memory, message3, env);
+
+    const message4 = evaluate("Balances");
+    const result4 = handle(loaded.memory, message4, env);
+    expect(result4.Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+
+    const message5 = evaluate("Stakers");
+    const result5 = handle(loaded.memory, message5, env);
+    expect(result5.Output.data.json).toEqual([]);
+  });
+
 });
