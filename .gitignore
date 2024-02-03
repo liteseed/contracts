@@ -19,6 +19,7 @@
 .DS_Store
 *.pem
 migrations
+.vscode
 
 # debug
 npm-debug.log*
@@ -42,3 +43,9 @@ yarn-error.log*
 **/*.log
 package-lock.json
 **/*.bun
+
+# wallet
+wallet.json
+arweave.json
+key.json
+keyfile.json
