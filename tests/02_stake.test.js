@@ -7,7 +7,7 @@ import { env } from 'process';
 const wasm = fs.readFileSync('./process.wasm');
 const liteseed = fs.readFileSync('./src/liteseed.lua', 'utf-8');
 
-const environment = { Process: { Id: "DUMMY-PROCESS-ID", Tags: [] } };
+const environment = { Process: { Id: "CONTRACT-PROCESS-ID", Tags: [] } };
 
 describe("Stake", () => {
   let loaded, handle;
@@ -20,7 +20,7 @@ describe("Stake", () => {
   const getReputations = evaluate("Reputations");
 
   const transfer = {
-    From: "DUMMY-PROCESS-ID",
+    From: "CONTRACT-PROCESS-ID",
     Tags: [
       { name: "Action", value: "Transfer" },
       { name: "Quantity", value: "100" },
@@ -32,8 +32,15 @@ describe("Stake", () => {
 
   beforeEach(async () => {
     loaded = evaluate(liteseed);
+
     handle = await AoLoader(wasm);
     handle(null, loaded, environment);
+    handle(loaded.memory, transfer, environment);
+
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
+    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
+    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
   });
 
   test("Stakers", async () => {
@@ -42,13 +49,6 @@ describe("Stake", () => {
   });
 
   test("Stake", async () => {
-    handle(loaded.memory, transfer, environment);
-
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
-    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
-
     const stake = {
       From: "SOME-PROCESS-ID",
       Tags: [
@@ -59,20 +59,13 @@ describe("Stake", () => {
     };
     handle(loaded.memory, stake, environment);
 
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
     expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
   });
 
-  test("Stake - Minimum Staking Quantity", async () => {
-    handle(loaded.memory, transfer, environment);
-
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
-    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
-
+  test("Minimum Staking Quantity", async () => {
     const stake = {
       From: "SOME-PROCESS-ID",
       Tags: [
@@ -82,20 +75,13 @@ describe("Stake", () => {
     };
     handle(loaded.memory, stake, environment);
 
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
     expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
   });
 
-  test("Stake - Insufficient Balance", async () => {
-    handle(loaded.memory, transfer, environment);
-
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
-    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
-
+  test("Insufficient Balance", async () => {
     const stake = {
       From: "SOME-PROCESS-ID",
       Tags: [
@@ -105,7 +91,7 @@ describe("Stake", () => {
     };
     handle(loaded.memory, stake, environment);
 
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
     expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
@@ -131,7 +117,7 @@ describe("Unstake", () => {
     'Block-Height': "100",
   };
   const transfer = {
-    From: "DUMMY-PROCESS-ID",
+    From: "CONTRACT-PROCESS-ID",
     Tags: [
       { name: "Action", value: "Transfer" },
       { name: "Quantity", value: "100" },
@@ -144,17 +130,11 @@ describe("Unstake", () => {
     loaded = evaluate(liteseed);
     handle = await AoLoader(wasm);
     handle(null, loaded, environment);
+    handle(loaded.memory, transfer, environment);
+    handle(loaded.memory, stake, environment);
   });
 
   test("Unstake", async () => {
-    handle(loaded.memory, transfer, environment);
-    handle(loaded.memory, stake, environment);
-
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
-    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
-    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
-    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
-
     const unstake = {
       From: "SOME-PROCESS-ID",
       Tags: [
@@ -165,20 +145,13 @@ describe("Unstake", () => {
     };
     handle(loaded.memory, unstake, environment);
 
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
     expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
   });
 
-  test("Unstake - No Stake", async () => {
-    handle(loaded.memory, transfer, environment);
-
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
-    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
-    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
-
+  test("No Stake", async () => {
     const unstake = {
       From: "SOME-PROCESS-ID",
       Tags: [
@@ -187,22 +160,16 @@ describe("Unstake", () => {
       ],
       'Block-Height': 300
     };
-    handle(loaded.memory, unstake, environment);
+    handle(loaded.memory, unstake, environment); // UNSTAKED
+    handle(loaded.memory, unstake, environment); // NO STAKE EXISTS
 
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
     expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
   });
 
-  test("Unstake - Requested amount greater than staked amount", async () => {
-    handle(loaded.memory, transfer, environment);
-    handle(loaded.memory, stake, environment);
-
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
-    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
-    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
-    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
+  test("Requested amount greater than staked amount", async () => {
 
     const unstake = {
       From: "SOME-PROCESS-ID",
@@ -214,21 +181,13 @@ describe("Unstake", () => {
     };
     handle(loaded.memory, unstake, environment);
 
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
     expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
   });
 
-  test("Unstake - Unstake time delay not expired", async () => {
-    handle(loaded.memory, transfer, environment);
-    handle(loaded.memory, stake, environment);
-
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
-    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
-    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
-    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
-
+  test("Time delay not expired", async () => {
     const unstake = {
       From: "SOME-PROCESS-ID",
       Tags: [
@@ -239,7 +198,7 @@ describe("Unstake", () => {
     };
     handle(loaded.memory, unstake, environment);
 
-    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "CONTRACT-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
     expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
