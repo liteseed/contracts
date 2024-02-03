@@ -170,4 +170,78 @@ describe("Unstake", () => {
     expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
     expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
   });
+
+  test("Unstake - No Stake", async () => {
+    handle(loaded.memory, transfer, environment);
+
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
+    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
+    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
+
+    const unstake = {
+      From: "SOME-PROCESS-ID",
+      Tags: [
+        { name: "Action", value: "Unstake" },
+        { name: "Quantity", value: "100" },
+      ],
+      'Block-Height': 300
+    };
+    handle(loaded.memory, unstake, environment);
+
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 100 });
+    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual([]);
+    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual([]);
+    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual([]);
+  });
+
+  test("Unstake - Requested amount greater than staked amount", async () => {
+    handle(loaded.memory, transfer, environment);
+    handle(loaded.memory, stake, environment);
+
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
+    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
+    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
+    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
+
+    const unstake = {
+      From: "SOME-PROCESS-ID",
+      Tags: [
+        { name: "Action", value: "Unstake" },
+        { name: "Quantity", value: "101" },
+      ],
+      'Block-Height': 300
+    };
+    handle(loaded.memory, unstake, environment);
+
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
+    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
+    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
+    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
+  });
+
+  test("Unstake - Unstake time delay not expired", async () => {
+    handle(loaded.memory, transfer, environment);
+    handle(loaded.memory, stake, environment);
+
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
+    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
+    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
+    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
+
+    const unstake = {
+      From: "SOME-PROCESS-ID",
+      Tags: [
+        { name: "Action", value: "Unstake" },
+        { name: "Quantity", value: "100" },
+      ],
+      'Block-Height': 101
+    };
+    handle(loaded.memory, unstake, environment);
+
+    expect(handle(loaded.memory, getBalances, environment).Output.data.json).toEqual({ "DUMMY-PROCESS-ID": 99999900, "SOME-PROCESS-ID": 0 });
+    expect(handle(loaded.memory, getStakers, environment).Output.data.json).toEqual({"SOME-PROCESS-ID": { amount: 100, stakedAt: 100}});
+    expect(handle(loaded.memory, getIndexedStakers, environment).Output.data.json).toEqual(["SOME-PROCESS-ID"]);
+    expect(handle(loaded.memory, getReputations, environment).Output.data.json).toEqual({ "SOME-PROCESS-ID" : 1000});
+  });
 });

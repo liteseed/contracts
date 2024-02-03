@@ -38,7 +38,7 @@ function Unstake(msg)
   local blockHeight = tonumber(msg['Block-Height'])
 
   assert(Stakers[sender] and Stakers[sender].amount, "Not staked")
-  assert(Stakers[sender].amount - quantity > 100 or Stakers[sender].amount - quantity == 0, "Requested amount greater than staked amount")
+  assert(Stakers[sender].amount >= quantity, "Requested amount greater than staked amount")
   assert(Stakers[sender].stakedAt + 100 < blockHeight, "Unstake time delay not expired")
 
   Stakers[sender].amount = Stakers[sender].amount - quantity
