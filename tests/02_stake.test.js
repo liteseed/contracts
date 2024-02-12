@@ -10,7 +10,8 @@ const liteseed = fs.readFileSync('./src/liteseed.lua', 'utf-8');
 const environment = { Process: { Id: "CONTRACT-PROCESS-ID", Tags: [] } };
 
 describe("Stake", () => {
-  let loaded, handle;
+  let loaded;
+  let handle;
 
   // Actions
 
@@ -100,7 +101,8 @@ describe("Stake", () => {
 });
 
 describe("Unstake", () => {
-  let loaded, handle;
+  let loaded;
+  let handle;
 
 
   const getBalances = evaluate("Balances");

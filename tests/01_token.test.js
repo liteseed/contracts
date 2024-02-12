@@ -9,7 +9,8 @@ const liteseed = fs.readFileSync('./src/liteseed.lua', 'utf-8');
 const environment = { Process: { Id: "DUMMY-PROCESS-ID", Tags: [] } };
 
 describe("Token", () => {
-  let loaded, handle;
+  let loaded;
+  let handle;
 
   beforeEach(async () => {
     loaded = evaluate(liteseed);
