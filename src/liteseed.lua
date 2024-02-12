@@ -150,6 +150,12 @@ end)
 
 Handlers.add('balances', Handlers.utils.hasMatchingTag('Action', 'Balances'),
   function(msg) ao.send({ Target = msg.From, Data = json.encode(Balances) }) end)
+Handlers.add('stakers', Handlers.utils.hasMatchingTag('Action', 'Stakers'),
+  function(msg) ao.send({ Target = msg.From, Data = json.encode(Stakers) }) end)
+Handlers.add('reputations', Handlers.utils.hasMatchingTag('Action', 'Reputations'),
+  function(msg) ao.send({ Target = msg.From, Data = json.encode(Reputations) }) end)
+Handlers.add('indexedStakers', Handlers.utils.hasMatchingTag('Action', 'IndexedStakers'),
+  function(msg) ao.send({ Target = msg.From, Data = json.encode(IndexedStakers) }) end)
 
 Handlers.add('mint', Handlers.utils.hasMatchingTag('Action', 'Mint'), Mint)
 Handlers.add('transfer', Handlers.utils.hasMatchingTag('Action', 'Transfer'), Transfer)
