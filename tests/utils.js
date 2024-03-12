@@ -1,16 +1,25 @@
-export function evaluate(data) {
+/**
+ * 
+ * @param {string} data 
+ * @param {{name: string, value: string}[]} tags 
+ * @param {string} id 
+ * @param {string} owner 
+ * @returns 
+ */
+
+export function generateMessage(data, tags, id, owner) {
   return {
-    Target: "DUMMY-PROCESS-ID",
-    From: "SOME-PROCESS-ID",
-    Tags: [
-      { name: "Action", value: "Eval" }
-    ],
-    Data: data
+    Id: id,
+    Module: "MODULE",
+    Owner: owner,
+    Tags: tags,
+    Data: data,
+    'Block-Height': '100',
   }
 }
 
 export function sortByKey(a, b) {
   if (a.name < b.name) return 1;
-  else if (a.name > b.name) return -1;
-  else return 0;
+  if (a.name > b.name) return -1;
+  return 0;
 }
