@@ -1,10 +1,16 @@
 -- This contract tracks transactions that are queued
 
+local json = require('json')
+
 Transactions = {} or Transactions
+_ID_COUNTER = 0 or _ID_COUNTER
 
-_ORBIT = "WSXUI2JjYUldJ7CKq9wE1MGwXs-ldzlUlHOQszwQe0s"
+function TransactionsId()
+  _ID_COUNTER = _ID_COUNTER + 1
+  return _ID_COUNTER
+end
 
-function GenerateID()
+function BundlerId()
   return 0
 end
 
@@ -15,9 +21,10 @@ function Generate(msg)
   assert(bytes and bytes > 0, "Size has to be greater than zero")
   assert(checksum and #checksum > 0, "Checksum is required to verify upload")
 
-  local id = GenerateID()
-  Transactions[id] = {bytes = bytes, checksum = checksum}
-  return id
+  local transactionsId = TransactionsId()
+  local bundlerId = BundlerId()
+  Transactions[transactionsId] = { bytes = bytes, checksum = checksum, bundlerId = bundlerId }
+  return {transactionsId, bundlerId}
 end
 
 function Queue(msg, env)
@@ -36,13 +43,11 @@ function Verify(msg, env)
   Balances[env.Process.Id] = Balances[env.Process.Id] + quantity
 end
 
-
-  
 Handlers.add('verify', Handlers.utils.hasMatchingTag('Action', 'Verify'),
-function(msg) ao.send({ Target = msg.From, Data = json.encode(Transactions) }) end)
+  function(msg) ao.send({ Target = msg.From, Data = json.encode(Transactions) }) end)
 
 Handlers.add('transactions', Handlers.utils.hasMatchingTag('Action', 'Transactions'),
   function(msg) ao.send({ Target = msg.From, Data = json.encode(Transactions) }) end)
-  
+
 Handlers.add('queue', Handlers.utils.hasMatchingTag('Action', 'Queue'),
   function(msg) ao.send({ Target = msg.From, Data = json.encode(Transactions) }) end)

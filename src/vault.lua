@@ -1,26 +1,20 @@
+local ao = require('ao')
+local json = require('json')
 local utils = require(".utils")
 
-Stakers = Stakers or {}
+if not Stakers then Stakers = {} end
 IndexedStakers = IndexedStakers or {}
 
 function Stake(msg)
-  local sender = msg.From
-  local quantity = tonumber(msg.Tags.Quantity)
-  local currentBlockHeight = tonumber(msg['Block-Height'])
+  assert(Balances[msg.From] and tonumber(Balances[msg.From]) >= 1000, "Insufficient Balance")
+  Balances[msg.From] = Balances[msg.From] - 1000
 
-  assert(quantity > 99, "Quantity has to be greater than 99")
-  assert(Balances[sender] and Balances[sender] >= quantity, "Insufficient Balance")
-  Balances[sender] = Balances[sender] - quantity
-
-  -- Index staker to randomly select --
-  if Stakers[sender] == nil then
-    Stakers[sender] = { amount = 0, stakedAt = -1 }
-    IndexedStakers[#IndexedStakers + 1] = sender
+  if Stakers[msg.From] == nil then
+    Stakers[msg.From] = 0
+    IndexedStakers[#IndexedStakers + 1] = msg.From
   end
-
-  Stakers[sender].amount = Stakers[sender].amount + quantity
-  Stakers[sender].stakedAt = currentBlockHeight
-  -- Reputations[sender] = Reputations[sender] or 1000
+  
+  Stakers[msg.From] = Stakers[msg.From] + 1000
 end
 
 function Unstake(msg)
@@ -82,10 +76,10 @@ function Slash(msg)
   Balances[sender] = (Balances[sender] or 0) + amount
 end
 
--- Handlers.add('reputations', Handlers.utils.hasMatchingTag('Action', 'Reputations'),
---   function(msg) ao.send({ Target = msg.From, Data = json.encode(Reputations) }) end)
 Handlers.add('stakers', Handlers.utils.hasMatchingTag('Action', 'Stakers'),
   function(msg) ao.send({ Target = msg.From, Data = json.encode(Stakers) }) end)
+
+
 Handlers.add('indexedStakers', Handlers.utils.hasMatchingTag('Action', 'IndexedStakers'),
   function(msg) ao.send({ Target = msg.From, Data = json.encode(IndexedStakers) }) end)
 Handlers.add('stake', Handlers.utils.hasMatchingTag('Action', 'Stake'), Stake)

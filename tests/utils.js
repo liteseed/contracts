@@ -1,21 +1,36 @@
 /**
- * 
- * @param {string} data 
- * @param {{name: string, value: string}[]} tags 
- * @param {string} id 
- * @param {string} owner 
- * @returns 
+ * @param {{ data: string; from: string; target: string; tags: {name: string, value: string}[]}} args
+ * @returns
  */
 
-export function generateMessage(data, tags, id, owner) {
+export function generateMessage({ target, from, data, tags }) {
   return {
-    Id: id,
-    Module: "MODULE",
-    Owner: owner,
-    Tags: tags,
+    Target: target,
+    Owner: "",
+    From: from,
+    Module: "ao.TN.x",
+    Id: "MESSAGE_ID",
+    Tags: tags ?? [],
+    Data: data ?? "_",
+    "Block-Height": "100",
+  };
+}
+
+/**
+ *
+ * @param {{data: string; env: {Process: {Id: string; Owner: string;}}}} args 
+ * @returns
+ */
+
+export function spawn({ data, env }) {
+  return {
+    Id: env.Process.Id,
+    Owner: env.Process.Owner,
+    Module: "ao.TN.x",
+    Tags: [{ name: "Action", value: "Eval" }],
     Data: data,
-    'Block-Height': '100',
-  }
+    "Block-Height": "100",
+  };
 }
 
 export function sortByKey(a, b) {
