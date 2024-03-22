@@ -1,37 +1,30 @@
+-- The contract implements staking, unstaking --
 local ao = require('ao')
 local json = require('json')
 local utils = require(".utils")
 
-if not Stakers then Stakers = {} end
+Stakers = Stakers or {}
 IndexedStakers = IndexedStakers or {}
 
 function Stake(msg)
   assert(Balances[msg.From] and tonumber(Balances[msg.From]) >= 1000, "Insufficient Balance")
   Balances[msg.From] = Balances[msg.From] - 1000
-
   if Stakers[msg.From] == nil then
     Stakers[msg.From] = 0
     IndexedStakers[#IndexedStakers + 1] = msg.From
   end
-  
   Stakers[msg.From] = Stakers[msg.From] + 1000
 end
 
 function Unstake(msg)
-  local sender = msg.From
-  local quantity = tonumber(msg.Tags.Quantity)
-  local blockHeight = tonumber(msg['Block-Height'])
+  assert(Stakers[msg.From] and tonumber(Stakers[msg.From]) >= 0, "No Stake")
+  Stakers[msg.From] = Stakers[msg.From] - 1000
 
-  assert(Stakers[sender] and Stakers[sender].amount, "Not staked")
-  assert(Stakers[sender].amount >= quantity, "Requested amount greater than staked amount")
-  assert(Stakers[sender].stakedAt + 100 < blockHeight, "Unstake time delay not expired")
+  Balances[msg.From] = (Balances[msg.From] or 0) + 1000
 
-  Stakers[sender].amount = Stakers[sender].amount - quantity
-  Balances[sender] = (Balances[sender] or 0) + quantity
-  if Stakers[sender].amount == 0 then
-    Stakers[sender] = nil
-    IndexedStakers = utils.filter(function(v) return (v ~= sender) end, IndexedStakers)
-    -- Reputations[sender] = nil
+  if Stakers[msg.From].amount == 0 then
+    Stakers[msg.From] = nil
+    IndexedStakers = utils.filter(function(v) return (v ~= msg.From) end, IndexedStakers)
   end
 end
 

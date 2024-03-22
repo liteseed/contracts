@@ -48,6 +48,11 @@ describe("Vault", () => {
     from: USER_PROCESS,
     tags: [{ name: "Action", value: "Stakers" }],
   });
+  const indexedStakers = generateMessage({
+    target: PROCESS,
+    from: USER_PROCESS,
+    tags: [{ name: "Action", value: "IndexedStakers" }],
+  });
 
 
   beforeEach(async () => {
@@ -86,6 +91,15 @@ describe("Vault", () => {
     const result = handle(process.Memory, message, ENVIRONMENT);
     assert.deepEqual(JSON.parse(result.Messages[0].Data), [])
   });
+  test("IndexedStakers", async () => {
+    const message = generateMessage({
+      target: PROCESS,
+      from: USER_PROCESS,
+      tags: [{ name: "Action", value: "IndexedStakers" }],
+    });
+    const result = handle(process.Memory, message, ENVIRONMENT);
+    assert.deepEqual(JSON.parse(result.Messages[0].Data), [])
+  });
 
   test("Stake", async () => {
     const message = generateMessage({
@@ -106,7 +120,8 @@ describe("Vault", () => {
       USER_PROCESS_ID: 1000
     });
 
-
+    const response2 = handle(process.Memory, indexedStakers, ENVIRONMENT);
+    assert.deepEqual(JSON.parse(response2.Messages[0].Data), [USER_PROCESS]);
   });
 
   test("Insufficient Balance", async () => {
