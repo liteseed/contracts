@@ -3,12 +3,12 @@
 local json = require("json")
 local utils = require(".utils")
 
----@type {[string]:{checksum:string, transaction: string}}
+---@type {[string]:{checksum:string, transaction: string, status: integer}}
 Uploads = {} or Uploads
 
 ---Using the the transaction ID of the transfer and checksum of the data generate an upload ID
 ---@return string
-function Generate(msg)
+function Initiate(msg)
   ---@type string
   local transaction = msg.Tags.Id
   ---@type string
@@ -20,35 +20,13 @@ function Generate(msg)
   ---@type string
   local id = GenerateId()
 
-  Uploads[id] = { transaction = transaction, checksum = checksum }
+  Uploads[id] = { transaction = transaction, checksum = checksum, status = 0 }
   return id
 end
 
-function Queue(msg, env)
-  assert(msg.From == env.Process.Id, "Caller not owner")
-  local quantity = tonumber(msg.Tags.Quantity)
-
-  assert(quantity and quantity > 0, 'Quantity is required!')
-  Balances[env.Process.Id] = Balances[env.Process.Id] + quantity
-end
-
-function Verify(msg, env)
-  assert(msg.From == env.Process.Id, "Caller not owner")
-  local quantity = tonumber(msg.Tags.Quantity)
-
-  assert(quantity and quantity > 0, 'Quantity is required!')
-  Balances[env.Process.Id] = Balances[env.Process.Id] + quantity
-end
-
-Handlers.add('verify', Handlers.utils.hasMatchingTag('Action', 'Verify'),
+Handlers.add('initiate', Handlers.utils.hasMatchingTag('Action', 'Initiate'), Initiate)
+Handlers.add('uploads', Handlers.utils.hasMatchingTag('Action', 'Uploads'),
   function(msg) ao.send({ Target = msg.From, Data = json.encode(Uploads) }) end)
-
-Handlers.add('transactions', Handlers.utils.hasMatchingTag('Action', 'Transactions'),
-  function(msg) ao.send({ Target = msg.From, Data = json.encode(Uploads) }) end)
-
-Handlers.add('queue', Handlers.utils.hasMatchingTag('Action', 'Queue'),
-  function(msg) ao.send({ Target = msg.From, Data = json.encode(Uploads) }) end)
-
 
 
 ---Generate an ID for upload. Is this a good idea? Probably not.
@@ -68,17 +46,17 @@ end
 ---@param id string
 ---@return boolean
 function ValidateTransaction(id)
-  local found = utils.find(
+  local past = utils.find(
     function(v)
-     return id == Uploads[id].transaction
+      return id == Uploads[id].transaction
     end,
     Uploads
   )
-
-  return !found
+  local recieved = utils.find(
+    function(v)
+      return v.Id == id
+    end, 
+    Inbox
+  )
+  return past == nil and recieved ~= nil
 end
-
-function CheckOracle(id)
-  return true
-end
-  
