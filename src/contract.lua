@@ -17,23 +17,14 @@ Denomination = 18
 ---@type string
 Logo = 'SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY'
 
----@type {[string]:{checksum:string, status: integer, quantity: string, bundler: string}}
+---@type {[string]:{checksum:string, status: integer, quantity: string, index: integer, block: integer}}
 Uploads = Uploads or {}
 
----@type string[]
+---@type {id: string, url: string, reputation: integer}[]
 Stakers = Stakers or {}
 
 ---@type string[]
 Slashed = Slashed or {}
-
----@type {[string]:string}
-Reputations = Reputations or {}
-
----Return a random staker
----@return string
-function RandomBundler()
-  return Stakers[math.random(#Stakers)]
-end
 
 ---@param sender string
 ---@param recipient string
@@ -84,31 +75,11 @@ function Verify(id)
 end
 
 ---Update Reputation of Staker
----@param id string
-function UpdateReputation(id)
-
+---@param index integer
+---@param amount integer
+function UpdateReputation(index, amount)
+  Stakers[index].reputation = Stakers[index].reputation + amount
 end
-
---- Token
-Handlers.add(
-  'transfer',
-  Handlers.utils.hasMatchingTag('Action', 'Transfer'),
-  function(message, _)
-    local recipient = message.Recipient
-    assert(recipient, "Invalid recipient")
-
-    local quantity = bint(message.Quantity)
-    assert(quantity and quantity > 0, "Quantity has to be positive")
-    assert(bint(Balances[message.From]) >= quantity, "Insufficient Balance")
-
-    local cast = message.Cast
-
-    if not Balances[message.From] then Balances[message.From] = "0" end
-    if not Balances[recipient] then Balances[recipient] = "0" end
-
-    Transfer(message.From, recipient, quantity, cast)
-  end
-)
 
 --- Network
 Handlers.add(
@@ -129,7 +100,13 @@ Handlers.add(
 
     Transfer(message.From, ao.id, quantity, nil)
 
-    Uploads[id] = { checksum = checksum, status = 0, quantity = tostring(quantity) }
+    Uploads[id] = {
+      checksum = checksum,
+      status = 0,
+      quantity = tostring(quantity),
+      bundler = math.random(#Stakers),
+      block = message['Block-Height']
+    }
   end
 )
 
@@ -141,8 +118,10 @@ Handlers.add(
     local exist = utils.includes(message.From, Stakers)
     assert(~exist, "already staked")
 
+    local url = message.URL;
+
     Transfer(message.From, ao.id, bint("1000"), false)
-    table.insert(Stakers, message.From)
+    table.insert(Stakers, {id = message.From, url = url, reputation = 1000})
   end
 )
 
@@ -152,7 +131,7 @@ Handlers.add(
   function(message, _)
     local pos = -1
     for i = 1, #Stakers do
-      if Stakers[i] == message.From then
+      if Stakers[i].id == message.From then
         pos = i
       end
     end
@@ -173,7 +152,9 @@ Handlers.add(
     local id = message.Transaction
     assert(id and #id > 0, "Invalid data item id")
 
-    assert(Uploads[id].bundler == message.From, "Not owner")
+    local bundler = Stakers[Uploads[id].index]
+    assert(bundler == message.From, "Not owner")
+
     assert(Uploads[id].status ~= 3, "Upload already complete")
 
     local status = tonumber(message.Status)
@@ -192,10 +173,13 @@ Handlers.add(
     local id = message.Transaction
     assert(id and #id > 0, "Invalid data item id")
 
-    assert(Uploads[id].bundler == message.From, "Not owner")
+    local bundler = Stakers[Uploads[id].index]
+    assert(bundler == message.From, "Not owner")
+
     assert(Uploads[id].status == 3, "Upload incomplete")
 
     Verify(id)
+    UpdateReputation(Uploads[id].index, 100)
 
     local quantity = bint(Uploads[id].quantity)
     Transfer(ao.id, message.From, quantity, nil)
