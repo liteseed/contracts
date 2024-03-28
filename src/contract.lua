@@ -124,7 +124,7 @@ Handlers.add(
     assert(not exist, "Already staked")
 
     assert(bint(Balances[message.From]) >= bint("1000"), "Insufficient Balance")
-    
+
     local url = message.URL;
     assert(url and #url > 0, "Invalid URL")
 
