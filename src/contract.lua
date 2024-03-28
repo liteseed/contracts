@@ -3,34 +3,17 @@ local ao = require('ao')
 local utils = require(".utils")
 local json = require("json")
 
----@type {[string]: string}
+-- Define or initialize variables
 Balances = Balances or { [ao.id] = tostring(bint(1e18)) }
-
----@type string
 Name = Name or "Bundler"
-
----@type string
 Ticker = Ticker or "BUN"
-
----@type integer
 Denomination = Denomination or 18
-
----@type string
 Logo = 'SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY'
-
----@type {[string]:{checksum:string, status: integer, quantity: string, index: integer, block: integer}}
 Uploads = Uploads or {}
-
----@type {id: string, url: string, reputation: integer}[]
 Stakers = Stakers or {}
-
----@type string[]
 Slashed = Slashed or {}
 
----@param sender string
----@param recipient string
----@param quantity Bint
----@param cast unknown
+-- Transfer function to handle token transfers
 function Transfer(sender, recipient, quantity, cast)
   Balances[sender] = Balances[sender] or tostring(0)
   Balances[recipient] = Balances[recipient] or tostring(0)
@@ -41,6 +24,7 @@ function Transfer(sender, recipient, quantity, cast)
     Balances[recipient] = tostring(bint.__add(Balances[recipient], quantity))
 
     if not cast then
+      -- Send Debit-Notice to the Sender
       ao.send({
         Target = sender,
         Action = 'Debit-Notice',
@@ -62,6 +46,7 @@ function Transfer(sender, recipient, quantity, cast)
       })
     end
   else
+    -- Send error message for insufficient balance
     ao.send({
       Target = sender,
       Action = 'Transfer-Error',
@@ -70,8 +55,7 @@ function Transfer(sender, recipient, quantity, cast)
   end
 end
 
----Verify an upload
----@param id string
+-- Verify an upload
 function Verify(id)
   assert(id and #id > 0, "Invalid data item id")
   assert(Uploads[id].status == 3, "Upload incomplete")
@@ -79,27 +63,20 @@ function Verify(id)
   return true
 end
 
----Update Reputation of Staker
----@param index integer
----@param amount integer
+-- Update Reputation of Staker
 function UpdateReputation(index, amount)
   Stakers[index].reputation = Stakers[index].reputation + amount
 end
 
---- Network
+-- Handler to process initiation of an upload
 Handlers.add(
   'initiate',
   Handlers.utils.hasMatchingTag('Action', 'Initiate'),
   function(message, _)
-    ---@type string
     local id = message.Transaction
     assert(id and #id > 0, "Invalid data item id")
-
-    ---@type string
     local checksum = message.Checksum
     assert(checksum and #checksum > 0, "Invalid checksum")
-
-    ---@type Bint
     local quantity = bint(message.Quantity)
     assert(quantity and quantity > 0, "Invalid quantity")
 
@@ -115,7 +92,7 @@ Handlers.add(
   end
 )
 
---- Vault
+-- Vault
 Handlers.add(
   'stake',
   Handlers.utils.hasMatchingTag('Action', 'Stake'),
@@ -124,7 +101,7 @@ Handlers.add(
     assert(not exist, "Already staked")
 
     assert(bint(Balances[message.From]) >= bint("1000"), "Insufficient Balance")
-
+    
     local url = message.URL;
     assert(url and #url > 0, "Invalid URL")
 
@@ -150,6 +127,7 @@ Handlers.add(
   end
 )
 
+-- Handler to process token transfers
 Handlers.add(
   'transfer',
   Handlers.utils.hasMatchingTag('Action', 'Transfer'),
@@ -164,13 +142,16 @@ Handlers.add(
   end
 )
 
---
+-- Handler to send balances to a user
 Handlers.add(
   'balances',
   Handlers.utils.hasMatchingTag('Action', 'Balances'),
-  function(message, _) ao.send({ Target = message.From, Data = json.encode(Balances) }) end
+  function(message, _)
+    ao.send({ Target = message.From, Data = json.encode(Balances) })
+  end
 )
 
+-- Handler to send staker information to a user
 Handlers.add(
   'stakers',
   Handlers.utils.hasMatchingTag('Action', 'Stakers'),
@@ -179,7 +160,16 @@ Handlers.add(
   end
 )
 
----Bundler can release its reward
+-- Handler to process a slashing request
+Handlers.add(
+  'slash',
+  Handlers.utils.hasMatchingTag('Action', 'Slash'),
+  function(message, _)
+    Slash(message)
+  end
+)
+
+-- Handler to process notifications
 Handlers.add(
   'notify',
   Handlers.utils.hasMatchingTag('Action', 'Notify'),
@@ -187,13 +177,12 @@ Handlers.add(
     assert(type(message.Transaction) == 'string', "DataItem id is required!")
     assert(type(message.Status) == 'string', "Status is required!")
 
-    ---@type string
     local id = message.Transaction
     local bundler = Stakers[Uploads[id].index]
     assert(bundler == message.From, "Not owner")
 
     assert(Uploads[id].status ~= 3, "Upload already complete")
-    ---@type integer
+
     local status = tonumber(message.Status)
     assert(utils.includes(status, { -1, 2, 3 }), "Invalid status")
 
@@ -201,12 +190,11 @@ Handlers.add(
   end
 )
 
----Bundler can release its reward
+-- Handler to release rewards
 Handlers.add(
   'release',
   Handlers.utils.hasMatchingTag('Action', 'Release'),
   function(message, _)
-    ---@type string
     local id = message.Transaction
     assert(id and #id > 0, "Invalid data item id")
 
