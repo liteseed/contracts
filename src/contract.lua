@@ -18,7 +18,7 @@ Denomination = Denomination or 18
 ---@type string
 Logo = 'SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY'
 
----@type {[string]:{checksum:string, status: integer, quantity: string, index: integer, block: integer}}
+---@type {[string]:{checksum:string, status: integer, quantity: string, bundler: integer, block: integer}}
 Uploads = Uploads or {}
 
 ---@type {id: string, url: string, reputation: integer}[]
@@ -92,17 +92,18 @@ Handlers.add(
   Handlers.utils.hasMatchingTag('Action', 'Initiate'),
   function(message, _)
     ---@type string
-    local id = message.Transaction
-    assert(id and #id > 0, "Invalid data item id")
+    local id = message.Tags.DataItemId
+    assert(id and #id > 0, "Invalid DataItemId")
 
     ---@type string
-    local checksum = message.Checksum
-    assert(checksum and #checksum > 0, "Invalid checksum")
+    local checksum = message.Tags.Checksum
+    assert(checksum and #checksum > 0, "Invalid Checksum")
 
     ---@type Bint
-    local quantity = bint(message.Quantity)
-    assert(quantity and quantity > 0, "Invalid quantity")
+    local quantity = bint(message.Tags.Quantity)
+    assert(quantity and quantity > 0, "Invalid Quantity")
 
+    assert(Balances[message.From] and bint(Balances[message.From]) >= quantity, "Insufficient Balance")
     Transfer(message.From, ao.id, quantity, false)
 
     Uploads[id] = {
@@ -124,8 +125,8 @@ Handlers.add(
     assert(not exist, "Already staked")
 
     assert(bint(Balances[message.From]) >= bint("1000"), "Insufficient Balance")
-    
-    local url = message.URL;
+
+    local url = message.Tags.URL;
     assert(url and #url > 0, "Invalid URL")
 
     Transfer(message.From, ao.id, bint("1000"), false)
@@ -154,13 +155,13 @@ Handlers.add(
   'transfer',
   Handlers.utils.hasMatchingTag('Action', 'Transfer'),
   function(message, _)
-    assert(type(message.Recipient) == 'string', 'Recipient is required!')
-    assert(type(message.Quantity) == 'string', 'Quantity is required!')
+    assert(type(message.Tags.Recipient) == 'string', 'Recipient is required!')
+    assert(type(message.Tags.Quantity) == 'string', 'Quantity is required!')
 
-    local quantity = bint(message.Quantity)
+    local quantity = bint(message.Tags.Quantity)
     assert(quantity > bint(0), 'Quantity is required!')
 
-    Transfer(message.From, message.Recipient, quantity, message.Cast)
+    Transfer(message.From, message.Tags.Recipient, quantity, message.Tags.Cast)
   end
 )
 
@@ -170,19 +171,15 @@ Handlers.add(
   'notify',
   Handlers.utils.hasMatchingTag('Action', 'Notify'),
   function(message, _)
-    assert(type(message.Transaction) == 'string', "DataItem id is required!")
-    assert(type(message.Status) == 'string', "Status is required!")
+    local id = message.Tags.DataItemId
+    assert(id and #id > 0, "Invalid DataItemId")
 
-    ---@type string
-    local id = message.Transaction
-    local bundler = Stakers[Uploads[id].index]
-    assert(bundler == message.From, "Not owner")
+    assert(Stakers[Uploads[id].bundler].id == message.From, "Not Owner")
 
-    assert(Uploads[id].status ~= 3, "Upload already complete")
-    ---@type integer
-    local status = tonumber(message.Status)
-    assert(utils.includes(status, { -1, 2, 3 }), "Invalid status")
+    local status = tonumber(message.Tags.Status, 10)
+    assert(utils.includes(status, { -1, 0, 1, 2, 3 }), "Invalid Status")
 
+    assert(Uploads[id].status ~= 3, "Upload Already Complete")
     Uploads[id].status = status
   end
 )
@@ -192,20 +189,18 @@ Handlers.add(
   'release',
   Handlers.utils.hasMatchingTag('Action', 'Release'),
   function(message, _)
-    ---@type string
-    local id = message.Transaction
-    assert(id and #id > 0, "Invalid data item id")
+    local id = message.Tags.DataItemId
+    assert(id and #id > 0, "Invalid DataItemId")
 
-    local bundler = Stakers[Uploads[id].index]
-    assert(bundler == message.From, "Not owner")
+    local index = Uploads[id].bundler
+    assert(Stakers[index].id == message.From, "Not Owner")
 
     assert(Uploads[id].status == 3, "Upload incomplete")
 
-    Verify(id)
-    UpdateReputation(Uploads[id].index, 100)
 
-    local quantity = bint(Uploads[id].quantity)
-    Transfer(ao.id, message.From, quantity, nil)
+    UpdateReputation(index, 100)
+
+    Transfer(ao.id, message.From, bint(Uploads[id].quantity), false)
   end
 )
 
@@ -219,12 +214,10 @@ Handlers.add(
   'upload',
   Handlers.utils.hasMatchingTag('Action', 'Upload'),
   function(message, _)
-    ao.send({ Target = message.From, Data = json.encode(Uploads[message.Transaction]) }) 
+    ao.send({ Target = message.From, Data = json.encode(Uploads[message.Tags.DataItemId]) })
   end
 )
 
-
---
 Handlers.add(
   'balances',
   Handlers.utils.hasMatchingTag('Action', 'Balances'),
