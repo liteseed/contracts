@@ -16,16 +16,13 @@ Ticker = Ticker or "BUN"
 Denomination = Denomination or 18
 
 ---@type string
-Logo = 'SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY'
+Logo = "SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY"
 
 ---@type {[string]:{checksum:string, status: integer, quantity: string, bundler: integer, block: integer}}
 Uploads = Uploads or {}
 
 ---@type {id: string, url: string, reputation: integer}[]
 Stakers = Stakers or {}
-
----@type string[]
-Slashed = Slashed or {}
 
 ---@param sender string
 ---@param recipient string
@@ -75,7 +72,7 @@ end
 function Verify(id)
   assert(id and #id > 0, "Invalid data item id")
   assert(Uploads[id].status == 3, "Upload incomplete")
-  --TODO: Actually check Arweave upload
+
   return true
 end
 
@@ -175,8 +172,7 @@ Handlers.add(
     assert(Uploads[id].status ~= 3, "Upload Already Complete")
 
     if (Uploads[id].status == 3) then
-      verify = Verify(id)
-      assert(verify, "verification failed")
+      assert(Verify(id), "verification failed")
     end
 
     Uploads[id].status = status
@@ -225,5 +221,25 @@ Handlers.add(
   Handlers.utils.hasMatchingTag('Action', 'Stakers'),
   function(message, _)
     ao.send({ Target = message.From, Data = json.encode(Stakers) })
+  end
+)
+
+Handlers.add(
+  'staker',
+  Handlers.utils.hasMatchingTag('Action', 'Staker'),
+  function(message, _)
+    local found = utils.find(
+      function(val)
+        return val.id == message.From
+      end,
+      Stakers
+    )
+
+    if found then Data = "Yes" else Data = "No" end
+    ao.send(
+      {
+        Target = message.From,
+        Data = Data,
+      })
   end
 )

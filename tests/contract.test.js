@@ -394,7 +394,7 @@ describe("Contract", () => {
 		});
 		test("Fail - Not Owner", async () => {
 			const message = structuredClone(notifyStatus);
-			message.From = "NEW_PROCESSS";
+			message.From = "NEW_PROCESS";
 
 			process = handle(process.Memory, message, ENVIRONMENT);
 			assert.match(process.Output.data.output, /Not Owner/);
