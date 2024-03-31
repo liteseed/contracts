@@ -79,13 +79,6 @@ function Verify(id)
   return true
 end
 
----Update Reputation of Staker
----@param index integer
----@param amount integer
-function UpdateReputation(index, amount)
-  Stakers[index].reputation = Stakers[index].reputation + amount
-end
-
 --- Network
 Handlers.add(
   'initiate',
@@ -180,6 +173,12 @@ Handlers.add(
     assert(utils.includes(status, { -1, 0, 1, 2, 3 }), "Invalid Status")
 
     assert(Uploads[id].status ~= 3, "Upload Already Complete")
+
+    if (Uploads[id].status == 3) then
+      verify = Verify(id)
+      assert(verify, "verification failed")
+    end
+
     Uploads[id].status = status
   end
 )
@@ -196,9 +195,6 @@ Handlers.add(
     assert(Stakers[index].id == message.From, "Not Owner")
 
     assert(Uploads[id].status == 3, "Upload incomplete")
-
-
-    UpdateReputation(index, 100)
 
     Transfer(ao.id, message.From, bint(Uploads[id].quantity), false)
   end
