@@ -18,7 +18,7 @@ Denomination = Denomination or 18
 ---@type string
 Logo = "SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY"
 
----@type {[string]:{checksum:string, status: integer, quantity: string, bundler: integer, block: integer}}
+---@type {[string]:{status: integer, quantity: string, bundler: integer, block: integer}}
 Uploads = Uploads or {}
 
 ---@type {id: string, url: string, reputation: integer}[]
@@ -85,19 +85,14 @@ Handlers.add(
     local id = message.Tags.DataItemId
     assert(id and #id > 0, "Invalid DataItemId")
 
-    ---@type string
-    local checksum = message.Tags.Checksum
-    assert(checksum and #checksum > 0, "Invalid Checksum")
-
     ---@type Bint
     local quantity = bint(message.Tags.Quantity)
-    assert(quantity and quantity > 0, "Invalid Quantity")
+    assert(quantity > 0, "Invalid Quantity")
 
     assert(Balances[message.From] and bint(Balances[message.From]) >= quantity, "Insufficient Balance")
     Transfer(message.From, ao.id, quantity, false)
 
     Uploads[id] = {
-      checksum = checksum,
       status = 0,
       quantity = tostring(quantity),
       bundler = math.random(#Stakers),

@@ -76,7 +76,6 @@ describe("Contract", () => {
 		tags: [
 			{ name: "Action", value: "Initiate" },
 			{ name: "DataItemId", value: "DATA_ITEM_ID" },
-			{ name: "Checksum", value: "DATA_MD5_CHECKSUM" },
 			{ name: "Quantity", value: "100" },
 		],
 	});
@@ -264,7 +263,6 @@ describe("Contract", () => {
 			assert.deepEqual(JSON.parse(process.Messages[0].Data), {
 				block: "100",
 				bundler: 1,
-				checksum: "DATA_MD5_CHECKSUM",
 				quantity: "100",
 				status: 0,
 			});
@@ -284,23 +282,9 @@ describe("Contract", () => {
 				USER_ID: "1000",
 			});
 		});
-		test("Fail - No Checksum", async () => {
-			const message = structuredClone(initiateUpload);
-			message.Tags[2].value = "";
-
-			process = handle(process.Memory, message, ENVIRONMENT);
-			assert.match(process.Output.data.output, /Invalid Checksum/);
-
-			process = handle(process.Memory, balances, ENVIRONMENT);
-			assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-				PROCESS_ID: "999999999999999000",
-				BUNDLER_PROCESS_ID: "0",
-				USER_ID: "1000",
-			});
-		});
 		test("Fail - No Quantity", async () => {
 			const message = structuredClone(initiateUpload);
-			message.Tags[3].value = "";
+			message.Tags[2].value = "";
 
 			process = handle(process.Memory, message, ENVIRONMENT);
 			assert.match(
@@ -308,7 +292,7 @@ describe("Contract", () => {
 				/value cannot be represented by a bint/,
 			);
 
-			message.Tags[3].value = "0";
+			message.Tags[2].value = "0";
 			process = handle(process.Memory, message, ENVIRONMENT);
 			assert.match(process.Output.data.output, /Invalid Quantity/);
 
@@ -324,7 +308,7 @@ describe("Contract", () => {
 
 		test("Fail - Insufficient Balance", async () => {
 			const message = structuredClone(initiateUpload);
-			message.Tags[3].value = "1001";
+			message.Tags[2].value = "1001";
 
 			process = handle(process.Memory, message, ENVIRONMENT);
 			assert.match(process.Output.data.output, /Insufficient Balance/);
@@ -352,7 +336,6 @@ describe("Contract", () => {
 			assert.deepEqual(JSON.parse(process.Messages[0].Data), {
 				block: "100",
 				bundler: 1,
-				checksum: "DATA_MD5_CHECKSUM",
 				quantity: "100",
 				status: 3,
 			});
@@ -366,7 +349,6 @@ describe("Contract", () => {
 			assert.deepEqual(JSON.parse(process.Messages[0].Data), {
 				block: "100",
 				bundler: 1,
-				checksum: "DATA_MD5_CHECKSUM",
 				quantity: "100",
 				status: 0,
 			});
@@ -387,7 +369,6 @@ describe("Contract", () => {
 			assert.deepEqual(JSON.parse(process.Messages[0].Data), {
 				block: "100",
 				bundler: 1,
-				checksum: "DATA_MD5_CHECKSUM",
 				quantity: "100",
 				status: 0,
 			});
