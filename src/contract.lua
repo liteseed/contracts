@@ -1,7 +1,8 @@
-local bint = require('.bint')(256)
 local ao = require('ao')
-local utils = require(".utils")
 local json = require("json")
+
+local bint = require('.bint')(256)
+local utils = require(".utils")
 
 ---@type {[string]: string}
 Balances = Balances or { [ao.id] = tostring(bint(1e18)) }
@@ -72,7 +73,13 @@ end
 function Verify(id)
   assert(id and #id > 0, "Invalid data item id")
   assert(Uploads[id].status == 3, "Upload incomplete")
-
+  ao.send({
+    Target = ao.id,
+    Tags = {
+      Load = id,
+      Action = "Data"
+    }
+  })
   return true
 end
 
@@ -167,7 +174,7 @@ Handlers.add(
     assert(Uploads[id].status ~= 3, "Upload Already Complete")
 
     if (Uploads[id].status == 3) then
-      assert(Verify(id), "verification failed")
+      assert(Verify(id), "Verification Failed")
     end
 
     Uploads[id].status = status
@@ -231,10 +238,6 @@ Handlers.add(
     )
 
     if found then Data = "Yes" else Data = "No" end
-    ao.send(
-      {
-        Target = message.From,
-        Data = Data,
-      })
+    ao.send({ Target = message.From, Data = Data })
   end
 )
