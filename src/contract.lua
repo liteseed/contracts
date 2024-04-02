@@ -91,6 +91,7 @@ Handlers.add(
     ---@type string
     local id = message.Tags.DataItemId
     assert(id and #id > 0, "Invalid DataItemId")
+    assert(Uploads[id] == nil, "Already Queued")
 
     ---@type Bint
     local quantity = bint(message.Tags.Quantity)
@@ -160,13 +161,13 @@ Handlers.add(
 
 ---Bundler can release its reward
 Handlers.add(
-  'notify',
-  Handlers.utils.hasMatchingTag('Action', 'Notify'),
+  'update_status',
+  Handlers.utils.hasMatchingTag('Action', 'UpdateStatus'),
   function(message, _)
     local id = message.Tags.DataItemId
     assert(id and #id > 0, "Invalid DataItemId")
 
-    assert(Stakers[Uploads[id].bundler].id == message.From, "Not Owner")
+    assert(Stakers[Uploads[id].bundler].id == message.From, "Not Assigned")
 
     local status = tonumber(message.Tags.Status, 10)
     assert(utils.includes(status, { -1, 0, 1, 2, 3 }), "Invalid Status")

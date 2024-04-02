@@ -92,11 +92,11 @@ describe("Contract", () => {
 		from: USER_ID,
 		tags: [{ name: "Action", value: "Uploads" }],
 	});
-	const notifyStatus = generateMessage({
+	const updateStatus = generateMessage({
 		target: PROCESS_ID,
 		from: BUNDLER_PROCESS_ID,
 		tags: [
-			{ name: "Action", value: "Notify" },
+			{ name: "Action", value: "UpdateStatus" },
 			{ name: "DataItemId", value: "DATA_ITEM_ID" },
 			{ name: "Status", value: "3" },
 		],
@@ -323,7 +323,7 @@ describe("Contract", () => {
 			assert.deepEqual(JSON.parse(process.Messages[0].Data), []);
 		});
 	});
-	describe("Notify", () => {
+	describe("UpdateStatus", () => {
 		beforeEach(async () => {
 			process = handle(process.Memory, transferToUser, ENVIRONMENT);
 			process = handle(process.Memory, stakeBundler, ENVIRONMENT);
@@ -331,7 +331,7 @@ describe("Contract", () => {
 		});
 
 		test("Success", async () => {
-			process = handle(process.Memory, notifyStatus, ENVIRONMENT);
+			process = handle(process.Memory, updateStatus, ENVIRONMENT);
 			process = handle(process.Memory, upload, ENVIRONMENT);
 			assert.deepEqual(JSON.parse(process.Messages[0].Data), {
 				block: "100",
@@ -341,7 +341,7 @@ describe("Contract", () => {
 			});
 		});
 		test("Fail - Invalid DataItemId", async () => {
-			const message = structuredClone(notifyStatus);
+			const message = structuredClone(updateStatus);
 			message.Tags[1].value = "";
 			process = handle(process.Memory, message, ENVIRONMENT);
 			assert.match(process.Output.data.output, /Invalid DataItemId/);
@@ -354,7 +354,7 @@ describe("Contract", () => {
 			});
 		});
 		test("Fail - Invalid Status", async () => {
-			const message = structuredClone(notifyStatus);
+			const message = structuredClone(updateStatus);
 			message.Tags[2].value = "";
 			process = handle(process.Memory, message, ENVIRONMENT);
 			assert.match(process.Output.data.output, /Invalid Status/);
@@ -374,14 +374,14 @@ describe("Contract", () => {
 			});
 		});
 		test("Fail - Not Owner", async () => {
-			const message = structuredClone(notifyStatus);
+			const message = structuredClone(updateStatus);
 			message.From = "NEW_PROCESS";
 
 			process = handle(process.Memory, message, ENVIRONMENT);
-			assert.match(process.Output.data.output, /Not Owner/);
+			assert.match(process.Output.data.output, /Not Assigned/);
 		});
 		test("Fail - Upload already complete", async () => {
-			const message = structuredClone(notifyStatus);
+			const message = structuredClone(updateStatus);
 			message.Tags[2].value = "3";
 
 			process = handle(process.Memory, message, ENVIRONMENT);
@@ -396,7 +396,7 @@ describe("Contract", () => {
 			process = handle(process.Memory, transferToUser, ENVIRONMENT);
 			process = handle(process.Memory, stakeBundler, ENVIRONMENT);
 			process = handle(process.Memory, initiateUpload, ENVIRONMENT);
-			process = handle(process.Memory, notifyStatus, ENVIRONMENT);
+			process = handle(process.Memory, updateStatus, ENVIRONMENT);
 		});
 
 		test("Success", async () => {
@@ -416,11 +416,11 @@ describe("Contract", () => {
 			assert.match(process.Output.data.output, /Invalid DataItemId/);
 		});
 		test("Fail - Upload incomplete", async () => {
-			const message = structuredClone(initiateUpload);
-			notifyStatus.Tags[1].value = "NEW_DATA_ITEM_ID";
-			process = handle(process.Memory, message, ENVIRONMENT);
+			const message1 = structuredClone(initiateUpload);
+			message1.Tags[1].value = "NEW_DATA_ITEM_ID";
+			process = handle(process.Memory, message1, ENVIRONMENT);
 			const message2 = structuredClone(releaseReward);
-			releaseReward.Tags[1].value = "NEW_DATA_ITEM_ID";
+			message2.Tags[1].value = "NEW_DATA_ITEM_ID";
 			process = handle(process.Memory, message2, ENVIRONMENT);
 			assert.match(process.Output.data.output, /Upload incomplete/);
 		});
