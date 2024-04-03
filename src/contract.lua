@@ -19,10 +19,10 @@ Denomination = Denomination or 18
 ---@type string
 Logo = "SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY"
 
----@type {[string]:{status: integer, quantity: string, bundler: integer, block: integer}}
+---@type {[string]:{status: string, quantity: string, bundler: string, block: string, transaction: string}}
 Uploads = Uploads or {}
 
----@type {id: string, url: string, reputation: integer}[]
+---@type {id: string, url: string, reputation: string}[]
 Stakers = Stakers or {}
 
 ---@param sender string
@@ -71,8 +71,6 @@ end
 ---Verify an upload
 ---@param id string
 function Verify(id)
-  assert(id and #id > 0, "Invalid data item id")
-  assert(Uploads[id].status == 3, "Upload incomplete")
   ao.send({
     Target = ao.id,
     Tags = {
@@ -101,10 +99,10 @@ Handlers.add(
     Transfer(message.From, ao.id, quantity, false)
 
     Uploads[id] = {
-      status = 0,
+      status = "0",
       quantity = tostring(quantity),
-      bundler = math.random(#Stakers),
-      block = message['Block-Height']
+      bundler = tostring(math.random(#Stakers)),
+      block = tostring(message['Block-Height'])
     }
   end
 )
@@ -161,24 +159,22 @@ Handlers.add(
 
 ---Bundler can release its reward
 Handlers.add(
-  'update_status',
-  Handlers.utils.hasMatchingTag('Action', 'UpdateStatus'),
+  'update',
+  Handlers.utils.hasMatchingTag('Action', 'Update'),
   function(message, _)
     local id = message.Tags.DataItemId
     assert(id and #id > 0, "Invalid DataItemId")
 
-    assert(Stakers[Uploads[id].bundler].id == message.From, "Not Assigned")
+    local index = tonumber(Uploads[id].bundler, 10)
+    assert(Stakers[index].id == message.From, "Not Assigned")
 
-    local status = tonumber(message.Tags.Status, 10)
-    assert(utils.includes(status, { -1, 0, 1, 2, 3 }), "Invalid Status")
+    assert(Uploads[id].status ~= "2", "Upload Already Complete")
 
-    assert(Uploads[id].status ~= 3, "Upload Already Complete")
-
-    if (Uploads[id].status == 3) then
-      assert(Verify(id), "Verification Failed")
-    end
-
-    Uploads[id].status = status
+    local transactionId = message.Tags.TransactionId
+    assert(transactionId and #transactionId > 0, "Invalid Transaction Id")
+    
+    Uploads[id].status = "1"
+    Uploads[id].transaction = transactionId
   end
 )
 
@@ -190,11 +186,13 @@ Handlers.add(
     local id = message.Tags.DataItemId
     assert(id and #id > 0, "Invalid DataItemId")
 
-    local index = Uploads[id].bundler
-    assert(Stakers[index].id == message.From, "Not Owner")
+    local index = tonumber(Uploads[id].bundler, 10)
+    assert(Stakers[index].id == message.From, "Not Assigned")
 
-    assert(Uploads[id].status == 3, "Upload incomplete")
+    assert(Uploads[id].status == "1", "Upload incomplete")
 
+    assert(Verify(Uploads[id].transaction), "Verification Failed")
+    Uploads[id].status = "2"
     Transfer(ao.id, message.From, bint(Uploads[id].quantity), false)
   end
 )
