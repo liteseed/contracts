@@ -159,8 +159,8 @@ Handlers.add(
 
 ---Bundler can release its reward
 Handlers.add(
-  'update',
-  Handlers.utils.hasMatchingTag('Action', 'Update'),
+  'notify',
+  Handlers.utils.hasMatchingTag('Action', 'Notify'),
   function(message, _)
     local id = message.Tags.DataItemId
     assert(id and #id > 0, "Invalid DataItemId")
