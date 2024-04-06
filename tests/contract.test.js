@@ -60,7 +60,7 @@ describe("Contract", () => {
     from: BUNDLER_PROCESS_ID,
     tags: [
       { name: "Action", value: "Stake" },
-      { name: "URL", value: "http://localhost" },
+      { name: "Url", value: "http://localhost" },
     ],
   });
 
@@ -73,18 +73,18 @@ describe("Contract", () => {
   const initiateUpload = generateMessage({
     target: PROCESS_ID,
     from: USER_ID,
+    data: "DATA_ITEM_ID",
     tags: [
       { name: "Action", value: "Initiate" },
-      { name: "DataItemId", value: "DATA_ITEM_ID" },
       { name: "Quantity", value: "100" },
     ],
   });
   const upload = generateMessage({
     target: PROCESS_ID,
     from: USER_ID,
+    data: "DATA_ITEM_ID",
     tags: [
       { name: "Action", value: "Upload" },
-      { name: "DataItemId", value: "DATA_ITEM_ID" },
     ],
   });
   const uploads = generateMessage({
@@ -271,7 +271,7 @@ describe("Contract", () => {
 
     test("Fail - No DataItem Id", async () => {
       const message = structuredClone(initiateUpload);
-      message.Tags[1].value = "";
+      message.Data = "";
 
       process = handle(process.Memory, message, ENVIRONMENT);
       assert.match(process.Output.data.output, /Invalid DataItemId/);
@@ -285,7 +285,7 @@ describe("Contract", () => {
     });
     test("Fail - No Quantity", async () => {
       const message = structuredClone(initiateUpload);
-      message.Tags[2].value = "";
+      message.Tags[1].value = "";
 
       process = handle(process.Memory, message, ENVIRONMENT);
       assert.match(
@@ -293,7 +293,7 @@ describe("Contract", () => {
         /value cannot be represented by a bint/,
       );
 
-      message.Tags[2].value = "0";
+      message.Tags[1].value = "0";
       process = handle(process.Memory, message, ENVIRONMENT);
       assert.match(process.Output.data.output, /Invalid Quantity/);
 
@@ -309,7 +309,7 @@ describe("Contract", () => {
 
     test("Fail - Insufficient Balance", async () => {
       const message = structuredClone(initiateUpload);
-      message.Tags[2].value = "1001";
+      message.Tags[1].value = "1001";
 
       process = handle(process.Memory, message, ENVIRONMENT);
       assert.match(process.Output.data.output, /Insufficient Balance/);
@@ -367,7 +367,6 @@ describe("Contract", () => {
       process = handle(process.Memory, notify, ENVIRONMENT);
       process = handle(process.Memory, releaseReward, ENVIRONMENT);
       process = handle(process.Memory, notify, ENVIRONMENT);
-
       assert.match(process.Output.data.output, /Upload Already Complete/);
     });
   });
@@ -382,6 +381,7 @@ describe("Contract", () => {
 
     test("Success", async () => {
       process = handle(process.Memory, releaseReward, ENVIRONMENT);
+      process = handle(process.Memory, uploads, ENVIRONMENT);
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
         PROCESS_ID: "999999999999999000",

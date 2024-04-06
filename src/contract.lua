@@ -70,7 +70,7 @@ end
 
 ---Verify an upload
 ---@param id string
-function Verify(id)
+function GetVerificationMessage(id)
   ao.send({
     Target = ao.id,
     Tags = {
@@ -78,7 +78,20 @@ function Verify(id)
       Action = "Data"
     }
   })
-  return true
+end
+
+---Verify an upload
+---@param id string
+---@return boolean
+function Verify(id)
+  local find = utils.find(
+    ---@param val Message
+    function(val)
+      return val.Tags["Id"] == id
+    end,
+    Inbox
+  )
+  return find ~= nil
 end
 
 --- Network
@@ -87,7 +100,7 @@ Handlers.add(
   Handlers.utils.hasMatchingTag('Action', 'Initiate'),
   function(message, _)
     ---@type string
-    local id = message.Tags.DataItemId
+    local id = message.Data
     assert(id and #id > 0, "Invalid DataItemId")
     assert(Uploads[id] == nil, "Already Queued")
 
@@ -117,7 +130,7 @@ Handlers.add(
 
     assert(bint(Balances[message.From]) >= bint("1000"), "Insufficient Balance")
 
-    local url = message.Tags.URL;
+    local url = message.Tags.Url;
     assert(url and #url > 0, "Invalid URL")
 
     Transfer(message.From, ao.id, bint("1000"), false)
@@ -172,7 +185,9 @@ Handlers.add(
 
     local transactionId = message.Tags.TransactionId
     assert(transactionId and #transactionId > 0, "Invalid Transaction Id")
-    
+
+    GetVerificationMessage(transactionId)
+
     Uploads[id].status = "1"
     Uploads[id].transaction = transactionId
   end
@@ -191,9 +206,12 @@ Handlers.add(
 
     assert(Uploads[id].status == "1", "Upload incomplete")
 
-    assert(Verify(Uploads[id].transaction), "Verification Failed")
-    Uploads[id].status = "2"
-    Transfer(ao.id, message.From, bint(Uploads[id].quantity), false)
+    if Verify(Uploads[id].transaction) then
+      Uploads[id].status = "2"
+      Transfer(ao.id, message.From, bint(Uploads[id].quantity), false)
+    else
+      Uploads[id].status = "-1"
+    end
   end
 )
 
@@ -207,7 +225,7 @@ Handlers.add(
   'upload',
   Handlers.utils.hasMatchingTag('Action', 'Upload'),
   function(message, _)
-    ao.send({ Target = message.From, Data = json.encode(Uploads[message.Tags.DataItemId]) })
+    ao.send({ Target = message.From, Data = json.encode(Uploads[message.Data]) })
   end
 )
 
