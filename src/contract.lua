@@ -247,6 +247,14 @@ Handlers.add(
   'staker',
   Handlers.utils.hasMatchingTag('Action', 'Staker'),
   function(message, _)
+    ao.send({ Target = message.From, Data = json.encode(Stakers[tonumber(message.Data, 10)]) })
+  end
+)
+
+Handlers.add(
+  'staked',
+  Handlers.utils.hasMatchingTag('Action', 'Staked'),
+  function(message, _)
     local found = utils.find(
       function(val)
         return val.id == message.From
@@ -258,3 +266,5 @@ Handlers.add(
     ao.send({ Target = message.From, Data = Data })
   end
 )
+
+
