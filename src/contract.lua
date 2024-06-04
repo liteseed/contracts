@@ -5,25 +5,26 @@ local bint = require('.bint')(256)
 local utils = require(".utils")
 
 ---@type {[string]: string}
-Balances = Balances or { [ao.id] = tostring(bint(1e18)) }
+Balances = Balances or { [ao.id] = tostring(bint("100000000000000000000")) }
 
 ---@type string
-Name = Name or "Bundler"
+Name = Name or "Liteseed"
 
 ---@type string
-Ticker = Ticker or "BUN"
+Ticker = Ticker or "LSD"
 
 ---@type integer
-Denomination = Denomination or 18
+Denomination = Denomination or 12
 
 ---@type string
 Logo = "SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY"
 
----@type {[string]:{status: string, quantity: string, bundler: string, block: string, transaction: string}}
+---@type {[string]:{status: string, size: string, bundler: string, bundle: string, payment: string}}
 Uploads = Uploads or {}
 
 ---@type {id: string, url: string, reputation: string}[]
 Stakers = Stakers or {}
+
 
 ---@param sender string
 ---@param recipient string
@@ -68,30 +69,18 @@ function Transfer(sender, recipient, quantity, cast)
   end
 end
 
----Verify an upload
+---UpdateReputation
 ---@param id string
-function GetVerificationMessage(id)
-  ao.send({
-    Target = ao.id,
-    Tags = {
-      Load = id,
-      Action = "Data"
-    }
-  })
-end
-
----Verify an upload
----@param id string
----@return boolean
-function Verify(id)
-  local find = utils.find(
-    ---@param val Message
-    function(val)
-      return val.Tags["Id"] == id
-    end,
-    Inbox
-  )
-  return find ~= nil
+---@param change integer
+function UpdateReputation(id, change)
+  local pos = -1
+  for i = 1, #Stakers do
+    if Stakers[i].id == id then
+      pos = i
+    end
+  end
+  assert(pos ~= -1, "Not Staked")
+  Stakers[pos].reputation = Stakers[pos].reputation + change
 end
 
 --- Network
@@ -100,25 +89,71 @@ Handlers.add(
   Handlers.utils.hasMatchingTag('Action', 'Initiate'),
   function(message, _)
     ---@type string
-    local id = message.Data
-    assert(id and #id > 0, "Invalid DataItemId")
-    assert(Uploads[id] == nil, "Already Queued")
+    local dataItem = message.Data
+    assert(dataItem and #dataItem > 0, "Invalid DataItem ID")
+    assert(Uploads[dataItem] == nil, "Already Queued")
 
     ---@type Bint
-    local quantity = bint(message.Tags.Quantity)
-    assert(quantity > 0, "Invalid Quantity")
+    local size = bint(message.Tags.Size)
+    assert(size > 0, "Invalid Size")
 
-    assert(Balances[message.From] and bint(Balances[message.From]) >= quantity, "Insufficient Balance")
-    Transfer(message.From, ao.id, quantity, false)
-
-    Uploads[id] = {
+    local stakerIndex = math.random(#Stakers)
+    Uploads[dataItem] = {
       status = "0",
-      quantity = tostring(quantity),
-      bundler = tostring(math.random(#Stakers)),
-      block = tostring(message['Block-Height'])
+      size = tostring(size),
+      block = tostring(message['Block-Height']),
+      paid = "",
+      bundler = Stakers[stakerIndex].id
     }
+
+    ao.send({ Target = message.From, Data = json.encode(Stakers[stakerIndex]) })
   end
 )
+
+Handlers.add(
+  'posted',
+  Handlers.utils.hasMatchingTag('Action', 'Posted'),
+  function(message, _)
+    ---@type string
+    local dataItem = message.Data
+    assert(dataItem and #dataItem > 0, "Invalid DataItem ID")
+    assert(Uploads[dataItem] ~= nil, "Upload does not exist")
+
+    assert(Uploads[dataItem].bundler == message.From, "Not assigned to bundler")
+    assert(Uploads[dataItem].status == "0", "Invalid Action")
+
+    local transaction = message.Tags.Transaction
+    assert(transaction and #transaction > 0, "Invalid Transaction ID")
+
+    Uploads[dataItem].bundle = transaction
+    Uploads[dataItem].status = "1"
+    ao.assign({ Processes = { ao.id }, Message = transaction, Exclude = { "Data", "Signature", "content-type", "Tags", "TagsArray" } })
+  end
+)
+
+Handlers.add(
+  'release',
+  Handlers.utils.hasMatchingTag('Action', 'Release'),
+  function(message, _)
+    ---@type string
+    local dataItem = message.Data
+    assert(dataItem and #dataItem > 0, "Invalid DataItem ID")
+
+    local bundler = message.From
+    assert(Uploads[dataItem].bundler == bundler, "Not assigned to bundler")
+    assert(Uploads[dataItem].status == "1", "Invalid action")
+
+    local exist = utils.includes(function(val) return val.Id == dataItem and val.From == bundler end, Inbox)
+    assert(exist, "Unable to verify transaction")
+    Uploads[dataItem].status = "2"
+
+    ---@type Bint
+    local reward = bint(Uploads[dataItem].size).__tdiv(bint(1024 * 1024 * 100))
+    Transfer(ao.id, bundler, reward, "")
+    UpdateReputation(bundler, 1)
+  end
+)
+
 
 --- Vault
 Handlers.add(
@@ -128,12 +163,12 @@ Handlers.add(
     local exist = utils.includes(message.From, Stakers)
     assert(not exist, "Already staked")
 
-    assert(bint(Balances[message.From]) >= bint("1000"), "Insufficient Balance")
+    assert(bint(Balances[message.From]) >= bint("100000000000000000"), "Insufficient Balance")
 
     local url = message.Tags.Url;
     assert(url and #url > 0, "Invalid URL")
 
-    Transfer(message.From, ao.id, bint("1000"), false)
+    Transfer(message.From, ao.id, bint("100000000000000000"), false)
     table.insert(Stakers, { id = message.From, url = url, reputation = 1000 })
   end
 )
@@ -150,7 +185,7 @@ Handlers.add(
     end
     assert(pos ~= -1, "Not Staked")
 
-    Transfer(ao.id, message.From, bint("1000"), false)
+    Transfer(ao.id, message.From, bint("100000000000000000"), false)
     table.remove(Stakers, pos)
   end
 )
@@ -170,51 +205,6 @@ Handlers.add(
 )
 
 
----Bundler can release its reward
-Handlers.add(
-  'notify',
-  Handlers.utils.hasMatchingTag('Action', 'Notify'),
-  function(message, _)
-    local id = message.Tags.DataItemId
-    assert(id and #id > 0, "Invalid DataItemId")
-
-    local index = tonumber(Uploads[id].bundler, 10)
-    assert(Stakers[index].id == message.From, "Not Assigned")
-
-    assert(Uploads[id].status ~= "2", "Upload Already Complete")
-
-    local transactionId = message.Tags.TransactionId
-    assert(transactionId and #transactionId > 0, "Invalid Transaction Id")
-
-    GetVerificationMessage(transactionId)
-
-    Uploads[id].status = "1"
-    Uploads[id].transaction = transactionId
-  end
-)
-
----Bundler can release its reward
-Handlers.add(
-  'release',
-  Handlers.utils.hasMatchingTag('Action', 'Release'),
-  function(message, _)
-    local id = message.Tags.DataItemId
-    assert(id and #id > 0, "Invalid DataItemId")
-
-    local index = tonumber(Uploads[id].bundler, 10)
-    assert(Stakers[index].id == message.From, "Not Assigned")
-
-    assert(Uploads[id].status == "1", "Upload incomplete")
-
-    if Verify(Uploads[id].transaction) then
-      Uploads[id].status = "2"
-      Transfer(ao.id, message.From, bint(Uploads[id].quantity), false)
-    else
-      Uploads[id].status = "-1"
-    end
-  end
-)
-
 Handlers.add(
   'uploads',
   Handlers.utils.hasMatchingTag('Action', 'Uploads'),
@@ -226,6 +216,33 @@ Handlers.add(
   Handlers.utils.hasMatchingTag('Action', 'Upload'),
   function(message, _)
     ao.send({ Target = message.From, Data = json.encode(Uploads[message.Data]) })
+  end
+)
+
+Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
+  ao.send({
+    Target = msg.From,
+    Data = json.encode({
+      Name = Name,
+      Ticker = Ticker,
+      Logo = Logo,
+      Denomination = tostring(Denomination)
+    })
+  })
+end)
+
+
+Handlers.add(
+  'balance',
+  Handlers.utils.hasMatchingTag('Action', 'Balance'),
+  function(message, _)
+    local balanceOf = ""
+    if message.Tags.Address == nil then
+      balanceOf = message.From
+    else
+      balanceOf = message.Tags.Address
+    end
+    ao.send({ Target = message.From, Data = Balances[balanceOf] })
   end
 )
 
@@ -244,20 +261,18 @@ Handlers.add(
 )
 
 Handlers.add(
-  'staker',
-  Handlers.utils.hasMatchingTag('Action', 'Staker'),
-  function(message, _)
-    ao.send({ Target = message.From, Data = json.encode(Stakers[tonumber(message.Data, 10)]) })
-  end
-)
-
-Handlers.add(
   'staked',
   Handlers.utils.hasMatchingTag('Action', 'Staked'),
   function(message, _)
+    local staker = ""
+    if message.Tags.Address == nil then
+      staker = message.From
+    else
+      staker = message.Tags.Address
+    end
     local found = utils.find(
       function(val)
-        return val.id == message.From
+        return val.id == staker
       end,
       Stakers
     )
@@ -266,5 +281,3 @@ Handlers.add(
     ao.send({ Target = message.From, Data = Data })
   end
 )
-
-

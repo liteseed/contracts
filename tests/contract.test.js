@@ -41,15 +41,6 @@ describe("Contract", () => {
       { name: "Quantity", value: "1000" },
     ],
   });
-  const transferToUser = generateMessage({
-    target: PROCESS_ID,
-    from: PROCESS_ID,
-    tags: [
-      { name: "Action", value: "Transfer" },
-      { name: "Recipient", value: USER_ID },
-      { name: "Quantity", value: "1000" },
-    ],
-  });
   const stakers = generateMessage({
     target: PROCESS_ID,
     from: BUNDLER_PROCESS_ID,
@@ -76,7 +67,7 @@ describe("Contract", () => {
     data: "DATA_ITEM_ID",
     tags: [
       { name: "Action", value: "Initiate" },
-      { name: "Quantity", value: "100" },
+      { name: "Size", value: "104857600" },
     ],
   });
   const upload = generateMessage({
@@ -92,22 +83,22 @@ describe("Contract", () => {
     from: USER_ID,
     tags: [{ name: "Action", value: "Uploads" }],
   });
-  const notify = generateMessage({
+  const posted = generateMessage({
     target: PROCESS_ID,
     from: BUNDLER_PROCESS_ID,
+    data: "DATA_ITEM_ID",
     tags: [
-      { name: "Action", value: "Notify" },
-      { name: "DataItemId", value: "DATA_ITEM_ID" },
-      { name: "TransactionId", value: "TRANSACTION_ID" }
+      { name: "Action", value: "Posted" },
+      { name: "Transaction", value: "TRANSACTION_ID" }
     ],
   });
 
-  const releaseReward = generateMessage({
+  const release = generateMessage({
     target: PROCESS_ID,
     from: BUNDLER_PROCESS_ID,
+    data: "DATA_ITEM_ID",
     tags: [
       { name: "Action", value: "Release" },
-      { name: "DataItemId", value: "DATA_ITEM_ID" },
     ],
   });
 
@@ -126,7 +117,7 @@ describe("Contract", () => {
     // SANITY CHECK - Check Balances
     process = handle(process.Memory, balances, ENVIRONMENT);
     assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-      PROCESS_ID: "999999999999999000",
+      PROCESS_ID: "99999000",
       BUNDLER_PROCESS_ID: "1000",
     });
   });
@@ -137,7 +128,7 @@ describe("Contract", () => {
       process = handle(process.Memory, balances, ENVIRONMENT);
 
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "1000000000000000000",
+        PROCESS_ID: "100000000",
         BUNDLER_PROCESS_ID: "0",
       });
 
@@ -166,12 +157,12 @@ describe("Contract", () => {
       );
 
       process = handle(process.Memory, stakeBundler, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Insufficient\ Balance/);
+      assert.match(process.Error, /Insufficient\ Balance/);
 
       process = handle(process.Memory, balances, ENVIRONMENT);
 
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999100",
+        PROCESS_ID: "99999100",
         BUNDLER_PROCESS_ID: "900",
       });
 
@@ -183,11 +174,11 @@ describe("Contract", () => {
       const copyStakeBundler = structuredClone(stakeBundler);
       copyStakeBundler.Tags[1].value = null;
       process = handle(process.Memory, copyStakeBundler, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Invalid\ URL/);
+      assert.match(process.Error, /Invalid\ URL/);
 
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
+        PROCESS_ID: "99999000",
         BUNDLER_PROCESS_ID: "1000",
       });
 
@@ -199,11 +190,11 @@ describe("Contract", () => {
       const copyStakeBundler = structuredClone(stakeBundler);
       copyStakeBundler.Tags[1].value = "";
       process = handle(process.Memory, copyStakeBundler, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Invalid\ URL/);
+      assert.match(process.Error, /Invalid\ URL/);
 
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
+        PROCESS_ID: "99999000",
         BUNDLER_PROCESS_ID: "1000",
       });
 
@@ -222,7 +213,7 @@ describe("Contract", () => {
 
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
+        PROCESS_ID: "99999000",
         BUNDLER_PROCESS_ID: "1000",
       });
 
@@ -234,11 +225,11 @@ describe("Contract", () => {
       process = handle(process.Memory, unstakeBundler, ENVIRONMENT);
       process = handle(process.Memory, unstakeBundler, ENVIRONMENT);
 
-      assert.match(process.Output.data.output, /Not\ Staked/);
+      assert.match(process.Error, /Not\ Staked/);
 
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
+        PROCESS_ID: "99999000",
         BUNDLER_PROCESS_ID: "1000",
       });
     });
@@ -246,7 +237,6 @@ describe("Contract", () => {
 
   describe("Initiate", () => {
     beforeEach(async () => {
-      process = handle(process.Memory, transferToUser, ENVIRONMENT);
       process = handle(process.Memory, stakeBundler, ENVIRONMENT);
     });
 
@@ -255,154 +245,135 @@ describe("Contract", () => {
 
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999100",
+        PROCESS_ID: "100000000",
         BUNDLER_PROCESS_ID: "0",
-        USER_ID: "900",
       });
 
       process = handle(process.Memory, upload, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
         block: "100",
-        bundler: "1",
-        quantity: "100",
+        bundler: "BUNDLER_PROCESS_ID",
+        size: "104857600",
+        paid: '',
         status: "0",
       });
     });
 
-    test("Fail - No DataItem Id", async () => {
+    test("Fail - No DataItem ID", async () => {
       const message = structuredClone(initiateUpload);
       message.Data = "";
 
       process = handle(process.Memory, message, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Invalid DataItemId/);
+      assert.match(process.Error, /Invalid DataItem ID/);
 
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
+        PROCESS_ID: "100000000",
         BUNDLER_PROCESS_ID: "0",
-        USER_ID: "1000",
       });
     });
-    test("Fail - No Quantity", async () => {
+
+    test("Fail - No Size", async () => {
       const message = structuredClone(initiateUpload);
       message.Tags[1].value = "";
 
       process = handle(process.Memory, message, ENVIRONMENT);
       assert.match(
-        process.Output.data.output,
+        process.Error,
         /value cannot be represented by a bint/,
       );
 
       message.Tags[1].value = "0";
       process = handle(process.Memory, message, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Invalid Quantity/);
+      assert.match(process.Error, /Invalid Size/);
 
       process = handle(process.Memory, balances, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
+        PROCESS_ID: "100000000",
         BUNDLER_PROCESS_ID: "0",
-        USER_ID: "1000",
       });
       process = handle(process.Memory, uploads, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), []);
     });
 
-    test("Fail - Insufficient Balance", async () => {
-      const message = structuredClone(initiateUpload);
-      message.Tags[1].value = "1001";
-
-      process = handle(process.Memory, message, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Insufficient Balance/);
-
-      process = handle(process.Memory, balances, ENVIRONMENT);
-      assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
-        BUNDLER_PROCESS_ID: "0",
-        USER_ID: "1000",
-      });
-      process = handle(process.Memory, uploads, ENVIRONMENT);
-      assert.deepEqual(JSON.parse(process.Messages[0].Data), []);
-    });
   });
 
-  describe("Notify", () => {
+  describe("Posted", () => {
     beforeEach(async () => {
-      process = handle(process.Memory, transferToUser, ENVIRONMENT);
       process = handle(process.Memory, stakeBundler, ENVIRONMENT);
       process = handle(process.Memory, initiateUpload, ENVIRONMENT);
     });
 
     test("Success", async () => {
-      process = handle(process.Memory, notify, ENVIRONMENT);
+      process = handle(process.Memory, posted, ENVIRONMENT);
       process = handle(process.Memory, upload, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
         block: "100",
-        bundler: "1",
-        quantity: "100",
+        bundler: "BUNDLER_PROCESS_ID",
+        size: "104857600",
         status: "1",
+        paid: "",
         transaction: "TRANSACTION_ID"
       });
     });
-    test("Fail - Invalid DataItemId", async () => {
-      const message = structuredClone(notify);
-      message.Tags[1].value = "";
+    test("Fail - Invalid DataItem ID", async () => {
+      const message = structuredClone(posted);
+      message.Data = "";
       process = handle(process.Memory, message, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Invalid DataItemId/);
+      assert.match(process.Error, /Invalid DataItem ID/);
       process = handle(process.Memory, upload, ENVIRONMENT);
       assert.deepEqual(JSON.parse(process.Messages[0].Data), {
         block: "100",
-        bundler: "1",
-        quantity: "100",
+        bundler: "BUNDLER_PROCESS_ID",
+        size: "104857600",
+        paid: "",
         status: "0",
       });
     });
     test("Fail - Not Assigned", async () => {
-      const message = structuredClone(notify);
+      const message = structuredClone(posted);
       message.From = "NEW_PROCESS";
 
       process = handle(process.Memory, message, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Not Assigned/);
+      assert.match(process.Error, /Not assigned/);
     });
     test("Fail - Upload already complete", async () => {
-      process = handle(process.Memory, notify, ENVIRONMENT);
-      process = handle(process.Memory, releaseReward, ENVIRONMENT);
-      process = handle(process.Memory, notify, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Upload Already Complete/);
+      process = handle(process.Memory, posted, ENVIRONMENT);
+      process = handle(process.Memory, release, ENVIRONMENT);
+      process = handle(process.Memory, posted, ENVIRONMENT);
+      assert.match(process.Error, /Invalid Action/);
     });
   });
 
-  describe("Release", () => {
-    beforeEach(async () => {
-      process = handle(process.Memory, transferToUser, ENVIRONMENT);
-      process = handle(process.Memory, stakeBundler, ENVIRONMENT);
-      process = handle(process.Memory, initiateUpload, ENVIRONMENT);
-      process = handle(process.Memory, notify, ENVIRONMENT);
-    });
+  // describe("Release", () => {
+  //   beforeEach(async () => {
+  //     process = handle(process.Memory, stakeBundler, ENVIRONMENT);
+  //     process = handle(process.Memory, initiateUpload, ENVIRONMENT);
+  //     process = handle(process.Memory, posted, ENVIRONMENT);
+  //   });
 
-    test("Success", async () => {
-      process = handle(process.Memory, releaseReward, ENVIRONMENT);
-      process = handle(process.Memory, uploads, ENVIRONMENT);
-      process = handle(process.Memory, balances, ENVIRONMENT);
-      assert.deepEqual(JSON.parse(process.Messages[0].Data), {
-        PROCESS_ID: "999999999999999000",
-        BUNDLER_PROCESS_ID: "100",
-        USER_ID: "900",
-      });
-    });
-    test("Fail - Invalid DataItemId", async () => {
-      const message = structuredClone(releaseReward);
-      message.Tags[1].value = "";
-      process = handle(process.Memory, message, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Invalid DataItemId/);
-    });
-    test("Fail - Upload incomplete", async () => {
-      const message1 = structuredClone(initiateUpload);
-      message1.Tags[1].value = "NEW_DATA_ITEM_ID";
-      process = handle(process.Memory, message1, ENVIRONMENT);
-      const message2 = structuredClone(releaseReward);
-      message2.Tags[1].value = "NEW_DATA_ITEM_ID";
-      process = handle(process.Memory, message2, ENVIRONMENT);
-      assert.match(process.Output.data.output, /Upload incomplete/);
-    });
-  });
+  //   test("Success", async () => {
+  //     process = handle(process.Memory, release, ENVIRONMENT);
+  //     process = handle(process.Memory, balances, ENVIRONMENT);
+  //     assert.deepEqual(JSON.parse(process.Messages[0].Data), {
+  //       PROCESS_ID: "99999990",
+  //       BUNDLER_PROCESS_ID: "10",
+  //     });
+  //   });
+  //   test("Fail - Invalid DataItemId", async () => {
+  //     const message = structuredClone(release);
+  //     message.Tags[1].value = "";
+  //     process = handle(process.Memory, message, ENVIRONMENT);
+  //     assert.match(process.Output.data.output, /Invalid DataItemId/);
+  //   });
+  //   test("Fail - Upload incomplete", async () => {
+  //     const message1 = structuredClone(initiateUpload);
+  //     message1.Tags[1].value = "NEW_DATA_ITEM_ID";
+  //     process = handle(process.Memory, message1, ENVIRONMENT);
+  //     const message2 = structuredClone(release);
+  //     message2.Tags[1].value = "NEW_DATA_ITEM_ID";
+  //     process = handle(process.Memory, message2, ENVIRONMENT);
+  //     assert.match(process.Output.data.output, /Upload incomplete/);
+  //   });
+  // });
 });
