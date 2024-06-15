@@ -19,7 +19,7 @@ Denomination = Denomination or 12
 ---@type string
 Logo = "SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY"
 
----@type {[string]:{status: string, size: string, bundler: string, bundle: string, payment: string}}
+---@type {[string]:{status: string, size: string, bundler: string, payment: string, transaction: string}}
 Uploads = Uploads or {}
 
 ---@type {id: string, url: string, reputation: string}[]
@@ -97,12 +97,15 @@ Handlers.add(
     local size = bint(message.Tags.Size)
     assert(size > 0, "Invalid Size")
 
+    local payment = message.Tags.Payment
+    assert(payment and #payment > 0, "Invalid Payment ID")
+
     local stakerIndex = math.random(#Stakers)
     Uploads[dataItem] = {
       status = "0",
       size = tostring(size),
       block = tostring(message['Block-Height']),
-      paid = "",
+      payment = payment,
       bundler = Stakers[stakerIndex].id
     }
 
@@ -125,7 +128,7 @@ Handlers.add(
     local transaction = message.Tags.Transaction
     assert(transaction and #transaction > 0, "Invalid Transaction ID")
 
-    Uploads[dataItem].bundle = transaction
+    Uploads[dataItem].transaction = transaction
     Uploads[dataItem].status = "1"
     ao.assign({ Processes = { ao.id }, Message = transaction, Exclude = { "Data", "Signature", "content-type", "Tags", "TagsArray" } })
   end

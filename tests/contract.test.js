@@ -104,7 +104,12 @@ describe("Contract", () => {
 
   beforeEach(async () => {
     // Load AO Loader
-    handle = await AoLoader(wasm);
+    handle = await AoLoader(wasm, {
+      format: "wasm64-unknown-emscripten-draft_2024_02_15", inputEncoding: "JSON-1",
+      outputEncoding: "JSON-1",
+      memoryLimit: "524288000", // in bytes
+      computeLimit: 9e12.toString(),
+    }, {});
 
     // Load Token
     process = handle(

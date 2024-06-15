@@ -1,8 +1,8 @@
 {
   "type": "module",
   "dependencies": {
-    "@permaweb/ao-loader": "0.0.22",
-    "@permaweb/aoconnect": "^0.0.40"
+    "@permaweb/ao-loader": "^0.0.35",
+    "@permaweb/aoconnect": "^0.0.55"
   },
   "scripts": {
     "test": "node ./tests/contract.test.js"
