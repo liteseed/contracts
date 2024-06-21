@@ -19,6 +19,7 @@ Denomination = Denomination or 12
 ---@type string
 Logo = "SBCCXwwecBlDqRLUjb8dYABExTJXLieawf7m2aBJ-KY"
 
+-- status: "created", "paid", "sent", "confirmed"
 ---@type {[string]:{status: string, size: string, bundler: string, payment: string, transaction: string}}
 Uploads = Uploads or {}
 
@@ -97,19 +98,35 @@ Handlers.add(
     local size = bint(message.Tags.Size)
     assert(size > 0, "Invalid Size")
 
-    local payment = message.Tags.Payment
-    assert(payment and #payment > 0, "Invalid Payment ID")
 
     local stakerIndex = math.random(#Stakers)
     Uploads[dataItem] = {
-      status = "0",
+      status = "created",
       size = tostring(size),
       block = tostring(message['Block-Height']),
-      payment = payment,
       bundler = Stakers[stakerIndex].id
     }
 
     ao.send({ Target = message.From, Data = json.encode(Stakers[stakerIndex]) })
+  end
+)
+
+Handlers.add(
+  'pay',
+  Handlers.utils.hasMatchingTag('Action', 'Pay'),
+  function(message, _)
+    ---@type string
+    local dataItem = message.Data
+    assert(dataItem and #dataItem > 0, "Invalid DataItem ID")
+    assert(Uploads[dataItem].bundler == message.From, "Not assigned to bundler")
+
+    ---@type string
+    local payment = message.Tags.Payment
+    assert(payment and #payment > 0, "Invalid Payment ID")
+    
+    assert(Uploads[dataItem].status == "created" or Uploads[dataItem].status == "paid", "Invalid Action")
+    Uploads[dataItem]["status"] = "paid"
+    Uploads[dataItem]["payment"] = payment
   end
 )
 
@@ -121,16 +138,10 @@ Handlers.add(
     local dataItem = message.Data
     assert(dataItem and #dataItem > 0, "Invalid DataItem ID")
     assert(Uploads[dataItem] ~= nil, "Upload does not exist")
-
     assert(Uploads[dataItem].bundler == message.From, "Not assigned to bundler")
-    assert(Uploads[dataItem].status == "0", "Invalid Action")
-
-    local transaction = message.Tags.Transaction
-    assert(transaction and #transaction > 0, "Invalid Transaction ID")
-
-    Uploads[dataItem].transaction = transaction
-    Uploads[dataItem].status = "1"
-    ao.assign({ Processes = { ao.id }, Message = transaction, Exclude = { "Data", "Signature", "content-type", "Tags", "TagsArray" } })
+    assert(Uploads[dataItem].status == "paid" or Uploads[dataItem].status == "sent", "Invalid Action")
+    Uploads[dataItem].status = "sent"
+    ao.assign({ Processes = { ao.id }, Message = dataItem, Exclude = { "Data", "Signature", "content-type", "Tags", "TagsArray" } })
   end
 )
 
@@ -144,11 +155,11 @@ Handlers.add(
 
     local bundler = message.From
     assert(Uploads[dataItem].bundler == bundler, "Not assigned to bundler")
-    assert(Uploads[dataItem].status == "1", "Invalid action")
+    assert(Uploads[dataItem].status == "sent", "Invalid action")
 
     local exist = utils.includes(function(val) return val.Id == dataItem and val.From == bundler end, Inbox)
     assert(exist, "Unable to verify transaction")
-    Uploads[dataItem].status = "2"
+    Uploads[dataItem].status = "confirmed"
 
     ---@type Bint
     local reward = bint(Uploads[dataItem].size).__tdiv(bint(1024 * 1024 * 100))
@@ -163,15 +174,15 @@ Handlers.add(
   'stake',
   Handlers.utils.hasMatchingTag('Action', 'Stake'),
   function(message, _)
-    local exist = utils.includes(message.From, Stakers)
+    local exist = utils.find(function(val) return val.id == message.From end, Stakers)
     assert(not exist, "Already staked")
 
-    assert(bint(Balances[message.From]) >= bint("100000000000000000"), "Insufficient Balance")
+    assert(bint(Balances[message.From]) >= bint("1000000000000000000000"), "Insufficient Balance")
 
     local url = message.Tags.Url;
     assert(url and #url > 0, "Invalid URL")
 
-    Transfer(message.From, ao.id, bint("100000000000000000"), false)
+    Transfer(message.From, ao.id, bint("1000000000000000000000"), false)
     table.insert(Stakers, { id = message.From, url = url, reputation = 1000 })
   end
 )
@@ -188,7 +199,7 @@ Handlers.add(
     end
     assert(pos ~= -1, "Not Staked")
 
-    Transfer(ao.id, message.From, bint("100000000000000000"), false)
+    Transfer(ao.id, message.From, bint("1000000000000000000000"), false)
     table.remove(Stakers, pos)
   end
 )
@@ -217,9 +228,7 @@ Handlers.add(
 Handlers.add(
   'upload',
   Handlers.utils.hasMatchingTag('Action', 'Upload'),
-  function(message, _)
-    ao.send({ Target = message.From, Data = json.encode(Uploads[message.Data]) })
-  end
+  function(message, _) ao.send({ Target = message.From, Data = json.encode(Uploads[message.Data]) }) end
 )
 
 Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
